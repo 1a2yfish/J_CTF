@@ -49,7 +49,7 @@ public class Team {
 
     @ManyToMany
     @JoinTable(
-            name = "TeamMember",
+            name = "Teammember",
             joinColumns = @JoinColumn(name = "TeamID"),
             inverseJoinColumns = @JoinColumn(name = "userID")
     )

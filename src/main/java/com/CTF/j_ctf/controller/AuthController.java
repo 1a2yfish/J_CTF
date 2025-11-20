@@ -1,12 +1,14 @@
 package com.CTF.j_ctf.controller;
 
-import com.CTF.j_ctf.common.Result;
 import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.User;
 import com.CTF.j_ctf.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -15,9 +17,8 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/users")
-public class UserController {
+public class AuthController {
 
-    // 注入UserService实现类（需确保Service层已添加@Service注解）
     @Autowired
     private UserService userService;
 
@@ -28,13 +29,12 @@ public class UserController {
      * 请求体：User对象的JSON数据
      */
     @PostMapping("/register")
-    public Result<User> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody User user) {
         try {
             User registeredUser = userService.register(user);
-            return Result.success(registeredUser);
+            return ResponseEntity.ok(createSuccessResponse("注册成功", registeredUser));
         } catch (Exception e) {
-            // 捕获业务异常，返回失败信息
-            return Result.fail("通用注册失败：" + e.getMessage());
+            return ResponseEntity.badRequest().body(createErrorResponse("注册失败：" + e.getMessage()));
         }
     }
 
@@ -45,7 +45,7 @@ public class UserController {
      * 请求参数：通过URL参数或表单传递
      */
     @PostMapping("/register/ordinary")
-    public Result<OrdinaryUser> registerOrdinaryUser(
+    public ResponseEntity<?> registerOrdinaryUser(
             @RequestParam String userPassword,
             @RequestParam String phoneNumber,
             @RequestParam String userEmail,
@@ -55,9 +55,9 @@ public class UserController {
         try {
             OrdinaryUser ordinaryUser = userService.registerOrdinaryUser(
                     userPassword, phoneNumber, userEmail, userName, gender, schoolWorkunit);
-            return Result.success(ordinaryUser);
+            return ResponseEntity.ok(createSuccessResponse("普通用户注册成功", ordinaryUser));
         } catch (Exception e) {
-            return Result.fail("普通用户注册失败：" + e.getMessage());
+            return ResponseEntity.badRequest().body(createErrorResponse("普通用户注册失败：" + e.getMessage()));
         }
     }
 
@@ -68,13 +68,19 @@ public class UserController {
      * 请求参数：账号（account）、密码（password）
      */
     @PostMapping("/login")
-    public Result<User> login(
+    public ResponseEntity<?> login(
             @RequestParam String account,
             @RequestParam String password) {
-        Optional<User> userOptional = userService.login(account, password);
-        // 判断Optional是否有值，有则返回用户信息，无则返回登录失败
-        return userOptional.map(Result::success)
-                .orElseGet(() -> Result.fail("账号或密码错误"));
+        try {
+            Optional<User> userOptional = userService.login(account, password);
+            if (userOptional.isPresent()) {
+                return ResponseEntity.ok(createSuccessResponse("登录成功", userOptional.get()));
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("账号或密码错误"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("登录失败：" + e.getMessage()));
+        }
     }
 
     /**
@@ -84,10 +90,17 @@ public class UserController {
      * 路径参数：用户ID
      */
     @GetMapping("/{id}")
-    public Result<User> findById(@PathVariable Integer id) {
-        Optional<User> userOptional = userService.findById(id);
-        return userOptional.map(Result::success)
-                .orElseGet(() -> Result.fail("未找到ID为" + id + "的用户"));
+    public ResponseEntity<?> findById(@PathVariable Integer id) {
+        try {
+            Optional<User> userOptional = userService.findById(id);
+            if (userOptional.isPresent()) {
+                return ResponseEntity.ok(createSuccessResponse("获取用户成功", userOptional.get()));
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("未找到ID为" + id + "的用户"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("获取用户失败：" + e.getMessage()));
+        }
     }
 
     /**
@@ -97,9 +110,62 @@ public class UserController {
      * 路径参数：用户账号
      */
     @GetMapping("/account/{account}")
-    public Result<User> findByAccount(@PathVariable String account) {
-        Optional<User> userOptional = userService.findByAccount(account);
-        return userOptional.map(Result::success)
-                .orElseGet(() -> Result.fail("未找到账号为" + account + "的用户"));
+    public ResponseEntity<?> findByAccount(@PathVariable String account) {
+        try {
+            Optional<User> userOptional = userService.findByAccount(account);
+            if (userOptional.isPresent()) {
+                return ResponseEntity.ok(createSuccessResponse("获取用户成功", userOptional.get()));
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("未找到账号为" + account + "的用户"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("获取用户失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 用户注销接口
+     * 请求方式：POST
+     * 路由：/api/users/logout
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout() {
+        try {
+            // 这里应该实现注销逻辑，比如清除session或token
+            return ResponseEntity.ok(createSuccessResponse("注销成功"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("注销失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 创建成功响应
+     */
+    private Map<String, Object> createSuccessResponse(String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", message);
+        return response;
+    }
+
+    /**
+     * 创建成功响应（带数据）
+     */
+    private Map<String, Object> createSuccessResponse(String message, Object data) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", message);
+        response.put("data", data);
+        return response;
+    }
+
+    /**
+     * 创建错误响应
+     */
+    private Map<String, Object> createErrorResponse(String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", message);
+        return response;
     }
 }

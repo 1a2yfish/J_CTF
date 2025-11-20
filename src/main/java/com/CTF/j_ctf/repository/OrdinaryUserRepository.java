@@ -25,8 +25,8 @@ public interface OrdinaryUserRepository extends JpaRepository<OrdinaryUser, Inte
     List<OrdinaryUser> findBySchoolWorkunit(String schoolWorkunit);
 
     // 根据用户名模糊搜索
-//    @Query("SELECT u FROM OrdinaryUser u WHERE u.userName LIKE %:userName%")
-//    List<OrdinaryUser> findByUserNameContaining(@Param("userName") String userName);
+    @Query("SELECT u FROM OrdinaryUser u WHERE u.userName LIKE %:userName%")
+    List<OrdinaryUser> findByUserNameContaining(@Param("userName") String userName);
     @Query("SELECT u FROM OrdinaryUser u WHERE u.userName LIKE %:userName%")
     Page<OrdinaryUser> findByUserNameContaining(@Param("userName") String userName, Pageable pageable);
 }

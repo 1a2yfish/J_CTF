@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
-@Table(name = "FlagSubmission")
+@Table(name = "Flagsubmission")
 public class FlagSubmission {
     /**
      * 提交记录主键ID

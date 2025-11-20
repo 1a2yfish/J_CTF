@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
-@Table(name = "TeamApplication")
+@Table(name = "Teamapplication")
 public class TeamApplication {
     // Getter和Setter
     @Id

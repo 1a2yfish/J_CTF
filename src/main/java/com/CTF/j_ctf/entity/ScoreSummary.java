@@ -9,8 +9,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
-@Table(name = "ScoreSummary")
-@SecondaryTable(name = "ScoreSummary") // 这是一个视图，不是实际表
+@Table(name = "Scoresummary")
 public class ScoreSummary {
     // Getter和Setter
     @Id

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
-@Table(name = "ChallengeHint")
+@Table(name = "Challengehint")
 public class ChallengeHint {
     // Getter和Setter
     @Id
