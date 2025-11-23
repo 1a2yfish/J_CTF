@@ -34,6 +34,7 @@
 <script setup>
 import { ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { showWarning } from '@/utils/message'
 
 const props = defineProps({
   disabled: {

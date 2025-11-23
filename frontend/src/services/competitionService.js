@@ -9,7 +9,12 @@ export const competitionService = {
             }
             const response = await api.get('/competitions', { params })
             if (response.data.success && response.data.data) {
-                return response.data.data.competitions || []
+                const competitions = response.data.data.competitions || []
+                // 确保只返回 isPublic 为 true 或 1 的竞赛
+                return competitions.filter(comp => {
+                    const isPublic = comp.isPublic !== undefined ? comp.isPublic : comp.ispublic
+                    return isPublic === true || isPublic === 1 || isPublic === '1'
+                })
             }
             return []
         } catch (error) {

@@ -263,6 +263,10 @@ export const adminService = {
         try {
             const response = await api.get(`/challenges/${challengeId}`)
             if (response.data.success && response.data.data) {
+                // 如果返回的是 { challenge, solved, isAdmin } 格式，提取challenge
+                if (response.data.data.challenge) {
+                    return response.data.data.challenge
+                }
                 return response.data.data
             }
             throw new Error(response.data.message || '获取题目详情失败')

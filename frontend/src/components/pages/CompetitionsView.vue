@@ -26,10 +26,13 @@ import { useRouter } from 'vue-router'
 import CompetitionCard from '../competition/CompetitionCard.vue'
 import { useCompetitionStore } from '../../stores/competitionStore'
 import { competitionService } from '../../services/competitionService'
+import { error as logError } from '@/utils/logger'
+import { handleApiError } from '@/utils/message'
 
 const router = useRouter()
 const competitionStore = useCompetitionStore()
 const competitions = ref([])
+const loading = ref(false)
 
 // 为竞赛列表加载统计数据（参赛人数）
 const loadCompetitionsWithStats = async (competitionList) => {
@@ -44,7 +47,7 @@ const loadCompetitionsWithStats = async (competitionList) => {
             participants: stats.participantCount || competition.participants || competition.participantCount || 0
           }
         } catch (error) {
-          console.error(`获取竞赛 ${competitionId} 统计数据失败:`, error)
+          logError(`获取竞赛 ${competitionId} 统计数据失败:`, error)
           return {
             ...competition,
             participants: competition.participants || competition.participantCount || 0
@@ -59,18 +62,31 @@ const loadCompetitionsWithStats = async (competitionList) => {
 
 onMounted(async () => {
   try {
-    const competitionList = await competitionStore.getPublishedCompetitions()
+    loading.value = true
+    // 直接使用 competitionService 获取公开竞赛
+    // 后端 getPublicCompetitions 已经过滤了 isPublic = true 的竞赛
+    const competitionList = await competitionService.getPublishedCompetitions(0, 1000, 'public')
+    
+    if (!Array.isArray(competitionList)) {
+      competitions.value = []
+      return
+    }
+    
     // 加载统计数据
     competitions.value = await loadCompetitionsWithStats(competitionList)
   } catch (error) {
-    console.error('加载竞赛列表失败:', error)
+    logError('加载竞赛列表失败:', error)
+    handleApiError(error, '加载竞赛列表失败')
+    competitions.value = []
+  } finally {
+    loading.value = false
   }
 })
 
 const navigateToCompetition = (id) => {
   // 确保ID有效
   if (!id || id === 'undefined' || id === 'null') {
-    console.error('无效的竞赛ID:', id)
+    logError('无效的竞赛ID:', id)
     return
   }
   router.push(`/competitions/${id}`)
@@ -109,6 +125,7 @@ const navigateToCompetition = (id) => {
   gap: 20px;
 }
 
+.loading-state,
 .empty-state {
   display: flex;
   justify-content: center;

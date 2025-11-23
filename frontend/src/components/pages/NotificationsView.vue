@@ -235,6 +235,8 @@ import { teamService } from '@/services/teamService'
 import { notificationService } from '@/services/notificationService'
 import { useAuthStore } from '@/stores/authStore'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
+import { showSuccess, showError, showWarning, handleApiError } from '@/utils/message'
+import { error as logError } from '@/utils/logger'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -314,7 +316,7 @@ const loadNotifications = async () => {
         })
       }
     } catch (error) {
-      console.error('加载申请通知失败:', error)
+      logError('加载申请通知失败:', error)
     }
     
     // 2. 获取Flag提交通知
@@ -322,7 +324,7 @@ const loadNotifications = async () => {
       const flagNotifications = await notificationService.getFlagSubmissionNotifications(userId)
       newNotifications.push(...flagNotifications)
     } catch (error) {
-      console.error('加载Flag提交通知失败:', error)
+      logError('加载Flag提交通知失败:', error)
     }
     
     // 3. 获取Hint更新通知
@@ -330,7 +332,7 @@ const loadNotifications = async () => {
       const hintNotifications = await notificationService.getHintUpdateNotifications(userId)
       newNotifications.push(...hintNotifications)
     } catch (error) {
-      console.error('加载Hint更新通知失败:', error)
+      logError('加载Hint更新通知失败:', error)
     }
     
     // 4. 获取队伍审核通过通知
@@ -338,7 +340,7 @@ const loadNotifications = async () => {
       const auditNotifications = await notificationService.getTeamAuditNotifications(userId)
       newNotifications.push(...auditNotifications)
     } catch (error) {
-      console.error('加载队伍审核通知失败:', error)
+      logError('加载队伍审核通知失败:', error)
     }
     
     // 5. 获取成员加入请求通知（作为队长）
@@ -346,7 +348,7 @@ const loadNotifications = async () => {
       const joinRequestNotifications = await notificationService.getMemberJoinRequestNotifications(userId)
       newNotifications.push(...joinRequestNotifications)
     } catch (error) {
-      console.error('加载成员加入请求通知失败:', error)
+      logError('加载成员加入请求通知失败:', error)
     }
     
     // 从localStorage恢复已读状态
@@ -360,7 +362,7 @@ const loadNotifications = async () => {
     notifications.value = newNotifications.sort((a, b) => new Date(b.time) - new Date(a.time))
   } catch (error) {
     console.error('加载通知失败:', error)
-    MessagePlugin.error('加载通知失败')
+    handleApiError(error, '加载通知失败')
   } finally {
     loading.value = false
   }
@@ -374,7 +376,7 @@ const loadReadStatus = () => {
     const stored = localStorage.getItem(`notification_read_${userId}`)
     return stored ? JSON.parse(stored) : {}
   } catch (error) {
-    console.error('加载已读状态失败:', error)
+    logError('加载已读状态失败:', error)
     return {}
   }
 }
@@ -392,7 +394,7 @@ const saveReadStatus = () => {
     })
     localStorage.setItem(`notification_read_${userId}`, JSON.stringify(readStatus))
   } catch (error) {
-    console.error('保存已读状态失败:', error)
+    logError('保存已读状态失败:', error)
   }
 }
 
@@ -400,14 +402,14 @@ const saveReadStatus = () => {
 const markAsRead = (notif) => {
   notif.read = true
   saveReadStatus()
-  MessagePlugin.success('已标记为已读')
+    showSuccess('已标记为已读')
 }
 
 // 全部已读
 const markAllAsRead = () => {
   notifications.value.forEach(n => n.read = true)
   saveReadStatus()
-  MessagePlugin.success('已标记全部为已读')
+  showSuccess('已标记全部为已读')
 }
 
 // 标签页切换
@@ -439,7 +441,7 @@ const handleApproveRequest = async (notif) => {
   processingApplication.value = notif.applicationId
   try {
     await teamService.processApplication(notif.applicationId, true, '已通过申请')
-    MessagePlugin.success('已通过申请')
+    showSuccess('已通过申请')
     notif.read = true
     saveReadStatus()
     // 从通知列表中移除（或更新状态）
@@ -457,7 +459,7 @@ const handleApproveRequest = async (notif) => {
       loadNotifications()
     }, 500)
   } catch (error) {
-    MessagePlugin.error('处理申请失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '处理申请失败')
   } finally {
     processingApplication.value = null
   }
@@ -478,7 +480,7 @@ const handleRejectRequest = async (notif) => {
   processingApplication.value = notif.applicationId
   try {
     await teamService.processApplication(notif.applicationId, false, '已拒绝申请')
-    MessagePlugin.success('已拒绝申请')
+    showSuccess('已拒绝申请')
     notif.read = true
     saveReadStatus()
     // 从通知列表中移除（或更新状态）
@@ -496,7 +498,7 @@ const handleRejectRequest = async (notif) => {
       loadNotifications()
     }, 500)
   } catch (error) {
-    MessagePlugin.error('处理申请失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '处理申请失败')
   } finally {
     processingApplication.value = null
   }

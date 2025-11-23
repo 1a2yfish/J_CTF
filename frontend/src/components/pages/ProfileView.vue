@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import api from '@/services/apiService'
 import { useAuthStore } from '@/stores/authStore'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { showSuccess, showError, handleApiError } from '@/utils/message'
 
 const auth = useAuthStore()
 const profile = ref(null)
@@ -30,17 +31,10 @@ async function saveProfile() {
         // 发送 PUT /users/profile
         const res = await api.put('/users/profile', profile.value)
         profile.value = res.data.data
-        MessagePlugin.success({
-            content: '个人信息更新成功',
-            duration: 3000,
-            icon: true
-        })
+        showSuccess('个人信息更新成功')
     } catch (e) {
         error.value = e.response?.data?.message || '更新失败'
-        MessagePlugin.error({
-            content: error.value,
-            duration: 3000
-        })
+        showError(error.value)
     } finally {
         loading.value = false
     }

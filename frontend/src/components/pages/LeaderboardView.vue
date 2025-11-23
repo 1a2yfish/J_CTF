@@ -67,6 +67,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCompetitionStore } from '@/stores/competitionStore'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { showError, handleApiError } from '@/utils/message'
+import { error as logError } from '@/utils/logger'
 
 const route = useRoute()
 const router = useRouter()
@@ -111,7 +113,7 @@ const loadData = async () => {
         title: compData.competitionName || compData.title || compData.Title
       }
     } catch (err) {
-      console.error('加载竞赛信息失败:', err)
+      logError('加载竞赛信息失败:', err)
     }
 
     // 加载排行榜

@@ -12,6 +12,13 @@ import CompetitionDetailView from './components/pages/CompetitionDetailView.vue'
 import TeamsView from './components/pages/TeamsView.vue'
 import ProfileView from './components/pages/ProfileView.vue'
 import AdminView from './components/pages/AdminView.vue'
+import CompetitionManagementView from './components/pages/CompetitionManagementView.vue'
+import CompetitionAuditView from './components/pages/CompetitionAuditView.vue'
+import TeamManagementView from './components/pages/TeamManagementView.vue'
+import TeamAuditView from './components/pages/TeamAuditView.vue'
+import ChallengeEditView from './components/pages/ChallengeEditView.vue'
+import UserManagementView from './components/pages/UserManagementView.vue'
+import FlagSubmissionView from './components/pages/FlagSubmissionView.vue'
 import ProblemsView from './components/pages/ProblemsView.vue'
 import NotificationsView from './components/pages/NotificationsView.vue'
 import LeaderboardView from './components/pages/LeaderboardView.vue'
@@ -143,6 +150,34 @@ const router = createRouter({
                 {
                     path: '',
                     component: AdminView
+                },
+                {
+                    path: 'competitions',
+                    component: CompetitionManagementView
+                },
+                {
+                    path: 'competitions/audit',
+                    component: CompetitionAuditView
+                },
+                {
+                    path: 'teams',
+                    component: TeamManagementView
+                },
+                {
+                    path: 'teams/audit',
+                    component: TeamAuditView
+                },
+                {
+                    path: 'challenges/:id',
+                    component: ChallengeEditView
+                },
+                {
+                    path: 'users',
+                    component: UserManagementView
+                },
+                {
+                    path: 'flag-submissions',
+                    component: FlagSubmissionView
                 }
             ]
         }

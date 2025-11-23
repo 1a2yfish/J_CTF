@@ -152,6 +152,8 @@ import JoinTeamModal from '../modals/JoinTeamModal.vue'
 import { useCompetitionStore } from '@/stores/competitionStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { showError, handleApiError } from '@/utils/message'
+import { error as logError, warn as logWarn } from '@/utils/logger'
 
 const route = useRoute()
 const router = useRouter()
@@ -200,7 +202,7 @@ onMounted(async () => {
       const { competitionService } = await import('@/services/competitionService')
       stats = await competitionService.getCompetitionStatistics(competitionId.value)
     } catch (err) {
-      console.error('加载竞赛统计失败:', err)
+      logError('加载竞赛统计失败:', err)
     }
     
     // 计算竞赛状态（根据时间）
@@ -220,7 +222,7 @@ onMounted(async () => {
           computedStatus = 'finished'
         }
       } catch (e) {
-        console.error('计算竞赛状态失败:', e)
+        logError('计算竞赛状态失败:', e)
       }
     }
     
@@ -240,7 +242,7 @@ onMounted(async () => {
     // 确保 competitionId 有值，如果没有则使用已加载的竞赛ID
     if (!competitionId.value && compId) {
       // 如果 computed 返回 null，但我们已经加载了竞赛数据，可以继续
-      console.warn('路由参数中的竞赛ID无效，但已加载竞赛数据，ID:', compId)
+      logWarn('路由参数中的竞赛ID无效，但已加载竞赛数据，ID:', compId)
     }
     
     // 检查用户是否已加入团队
@@ -263,7 +265,7 @@ onMounted(async () => {
             }
           }
         } catch (err) {
-          console.error('获取团队排名失败:', err)
+          logError('获取团队排名失败:', err)
           competition.value.rank = 0
         }
       } else {
@@ -279,8 +281,8 @@ onMounted(async () => {
 
     // 不再在详情页加载排行榜，改为在独立页面加载
   } catch (error) {
-    console.error('加载竞赛详情失败:', error)
-    MessagePlugin.error('加载竞赛详情失败: ' + (error.message || '未知错误'))
+    logError('加载竞赛详情失败:', error)
+    handleApiError(error, '加载竞赛详情失败')
     await router.push('/competitions')
   }
 })
@@ -320,7 +322,7 @@ const enterChallenges = async (event) => {
     // 优先使用 competitionId.value，如果为 null 则使用 competition.id
     const id = competitionId.value || competition.value?.id
     if (!id) {
-      console.error('竞赛ID无效', { 
+      logError('竞赛ID无效', { 
         competitionId: competitionId.value, 
         competition: competition.value,
         routeParams: route.params 

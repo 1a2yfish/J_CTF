@@ -316,7 +316,9 @@ import { useCompetitionStore } from '@/stores/competitionStore'
 import { teamService } from '@/services/teamService'
 import { writeUpService } from '@/services/writeUpService'
 import TeamCard from '../team/TeamCard.vue'
-import { MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
+import { showSuccess, showError, showWarning, showInfo, handleApiError } from '@/utils/message'
+import { debug, error as logError } from '@/utils/logger'
 
 const router = useRouter()
 const teamStore = useTeamStore()
@@ -384,7 +386,7 @@ const loadCompetitions = async () => {
       value: c.competitionID || c.id
     }))
   } catch (err) {
-    console.error('加载竞赛列表失败:', err)
+    logError('加载竞赛列表失败:', err)
   } finally {
     loadingCompetitions.value = false
   }
@@ -404,40 +406,35 @@ const loadMyTeams = async () => {
     
     while (hasMore) {
       const result = await teamService.getMyTeams(currentPage, pageSize)
-      console.log(`第 ${currentPage + 1} 页团队数据:`, result)
+      debug(`加载第 ${currentPage + 1} 页团队数据`)
       
       const pageTeams = result && result.teams ? result.teams : (Array.isArray(result) ? result : [])
       
       if (pageTeams && pageTeams.length > 0) {
-        console.log(`第 ${currentPage + 1} 页获取到 ${pageTeams.length} 个团队`)
         allTeams = allTeams.concat(pageTeams)
       }
       
       // 检查是否还有更多数据
       if (result && result.totalPages !== undefined && result.totalPages > 0) {
         hasMore = currentPage < result.totalPages - 1
-        console.log(`总页数: ${result.totalPages}, 当前页: ${currentPage}, 还有更多: ${hasMore}`)
         currentPage++
       } else if (result && result.totalElements !== undefined && result.totalElements > 0) {
         hasMore = allTeams.length < result.totalElements
-        console.log(`总数量: ${result.totalElements}, 已加载: ${allTeams.length}, 还有更多: ${hasMore}`)
         currentPage++
       } else {
         // 如果没有分页信息，检查当前页是否有数据
         hasMore = pageTeams && pageTeams.length === pageSize
-        console.log(`当前页数据量: ${pageTeams ? pageTeams.length : 0}, 还有更多: ${hasMore}`)
         currentPage++
       }
       
       // 防止无限循环
       if (currentPage > 10) {
-        console.warn('加载团队列表时达到最大页数限制')
+        logError('加载团队列表时达到最大页数限制')
         break
       }
       
       // 如果当前页没有数据，停止加载
       if (!pageTeams || pageTeams.length === 0) {
-        console.log('当前页没有数据，停止加载')
         break
       }
     }
@@ -458,11 +455,11 @@ const loadMyTeams = async () => {
         creationTime: team.creationTime || team.creationTime
       }
     })
-    console.log('最终加载的团队列表:', teams.value.length, '个团队', teams.value)
+    debug(`成功加载 ${teams.value.length} 个团队`)
   } catch (err) {
-    console.error('加载团队列表失败:', err)
+    logError('加载团队列表失败:', err)
     error.value = err.message || '加载团队列表失败'
-    MessagePlugin.error('加载团队列表失败: ' + (err.message || '未知错误'))
+    handleApiError(err, '加载团队列表失败')
   } finally {
     loading.value = false
   }
@@ -471,11 +468,11 @@ const loadMyTeams = async () => {
 // 创建团队
 const handleCreateTeam = async () => {
   if (!createTeamForm.value.teamName) {
-    MessagePlugin.warning('请输入团队名称')
+    showWarning('请输入团队名称')
     return
   }
   if (!createTeamForm.value.competitionId) {
-    MessagePlugin.warning('请选择竞赛')
+    showWarning('请选择竞赛')
     return
   }
 
@@ -483,11 +480,11 @@ const handleCreateTeam = async () => {
   try {
     const hasTeam = await teamService.hasTeamForCompetition(createTeamForm.value.competitionId)
     if (hasTeam) {
-      MessagePlugin.warning('您已在该竞赛中加入了团队，每个竞赛只能加入一个团队')
+      showWarning('您已在该竞赛中加入了团队，每个竞赛只能加入一个团队')
       return
     }
   } catch (error) {
-    console.error('检查团队状态失败:', error)
+    logError('检查团队状态失败:', error)
     // 继续执行，让后端验证
   }
 
@@ -501,7 +498,7 @@ const handleCreateTeam = async () => {
       description: createTeamForm.value.description || null
     })
 
-    MessagePlugin.success('团队创建成功')
+    showSuccess('团队创建成功')
     showCreateTeamModal.value = false
     createTeamForm.value = {
       competitionId: null,
@@ -513,7 +510,7 @@ const handleCreateTeam = async () => {
     await loadMyTeams()
   } catch (error) {
     // 后端返回的错误消息应该已经包含了"您已加入该竞赛的其他战队"等信息
-    MessagePlugin.error(error.message || '创建团队失败')
+    handleApiError(error, '创建团队失败')
   } finally {
     creatingTeam.value = false
   }
@@ -537,8 +534,8 @@ const searchTeams = async () => {
     const result = await teamService.getTeams(params.page, params.size, params.competitionId, null, params.keyword)
     availableTeams.value = result.teams || []
   } catch (err) {
-    console.error('搜索团队失败:', err)
-    MessagePlugin.error('搜索团队失败: ' + (err.message || '未知错误'))
+    logError('搜索团队失败:', err)
+    handleApiError(err, '搜索团队失败')
     availableTeams.value = []
   } finally {
     searchingTeams.value = false
@@ -547,13 +544,13 @@ const searchTeams = async () => {
 
 // 处理创建团队按钮点击
 const handleCreateTeamClick = () => {
-  console.log('创建团队按钮被点击')
+  debug('创建团队按钮被点击')
   showCreateTeamModal.value = true
 }
 
 // 处理加入团队按钮点击
 const handleJoinTeamClick = () => {
-  console.log('加入团队按钮被点击')
+  debug('加入团队按钮被点击')
   showJoinTeamModal.value = true
 }
 
@@ -562,7 +559,7 @@ const handleJoinTeam = async (team) => {
   try {
     const teamId = team.teamID || team.id
     if (!teamId) {
-      MessagePlugin.error('无效的团队ID')
+      showError('无效的团队ID')
       return
     }
 
@@ -572,24 +569,24 @@ const handleJoinTeam = async (team) => {
       try {
         const hasTeam = await teamService.hasTeamForCompetition(competitionId)
         if (hasTeam) {
-          MessagePlugin.warning('您已在该竞赛中加入了团队，每个竞赛只能加入一个团队')
+          showWarning('您已在该竞赛中加入了团队，每个竞赛只能加入一个团队')
           return
         }
       } catch (error) {
-        console.error('检查团队状态失败:', error)
+        logError('检查团队状态失败:', error)
         // 继续执行，让后端验证
       }
     }
     
     await teamService.joinTeam(teamId, '')
-    MessagePlugin.success('申请已提交，等待队长审核')
+    showSuccess('申请已提交，等待队长审核')
     showJoinTeamModal.value = false
     // 重新加载团队列表
     await loadMyTeams()
   } catch (error) {
     // 后端返回的错误消息应该已经包含了"您已加入该竞赛的其他战队"等信息
     const errorMessage = error.message || '申请加入团队失败'
-    MessagePlugin.error(errorMessage)
+    showError(errorMessage)
   }
 }
 
@@ -630,12 +627,10 @@ const handleViewMembers = async (team) => {
     currentTeamInfo.value = teamDetail // 更新为完整的团队详情
     currentTeamMembers.value = teamDetail.members || team.members || []
     
-    console.log('团队详情:', currentTeamInfo.value)
-    console.log('团队成员:', currentTeamMembers.value)
-    console.log('队长ID:', currentTeamInfo.value.captain?.userID || currentTeamInfo.value.captainID)
+    debug('团队详情已加载', { teamId: currentTeamInfo.value?.teamID, memberCount: currentTeamMembers.value?.length })
   } catch (error) {
-    console.error('获取团队成员失败:', error)
-    MessagePlugin.error('获取团队成员失败: ' + (error.message || '未知错误'))
+    logError('获取团队成员失败:', error)
+    handleApiError(error, '获取团队成员失败')
     currentTeamMembers.value = []
   } finally {
     loadingMembers.value = false
@@ -660,11 +655,7 @@ const handleUpdateDescription = async () => {
       description: editDescriptionForm.value.description || null
     })
     
-    MessagePlugin.success({
-      content: '团队描述更新成功',
-      duration: 3000,
-      icon: true
-    })
+    showSuccess('团队描述更新成功')
     
     showEditDescriptionDialog.value = false
     editingTeam.value = null
@@ -673,10 +664,7 @@ const handleUpdateDescription = async () => {
     // 重新加载团队列表
     await loadMyTeams()
   } catch (error) {
-    MessagePlugin.error({
-      content: error.message || '更新团队描述失败',
-      duration: 3000
-    })
+    handleApiError(error, '更新团队描述失败')
   } finally {
     updatingDescription.value = false
   }
@@ -695,19 +683,12 @@ const handleDisbandTeam = async (team) => {
         const teamId = team.teamID || team.id
         await teamService.disbandTeam(teamId)
         
-        MessagePlugin.success({
-          content: '团队解散成功',
-          duration: 3000,
-          icon: true
-        })
+        showSuccess('团队解散成功')
         
         // 重新加载团队列表
         await loadMyTeams()
       } catch (error) {
-        MessagePlugin.error({
-          content: error.message || '解散团队失败',
-          duration: 3000
-        })
+        handleApiError(error, '解散团队失败')
       }
     }
   })
@@ -720,7 +701,7 @@ const handleSubmitWriteUp = async (team) => {
     const competitionId = team.competitionID || team.competition?.competitionID || team.competitionId
     
     if (!competitionId) {
-      MessagePlugin.error('无法获取竞赛信息')
+      showError('无法获取竞赛信息')
       return
     }
     
@@ -743,7 +724,7 @@ const handleSubmitWriteUp = async (team) => {
         title: myWriteUp.title || '',
         content: myWriteUp.content || ''
       }
-      MessagePlugin.info('您已提交过WriteUp，可以更新内容')
+      showInfo('您已提交过WriteUp，可以更新内容')
     } else {
       // 新建WriteUp
       writeUpForm.value = {
@@ -755,18 +736,18 @@ const handleSubmitWriteUp = async (team) => {
     
     showWriteUpDialog.value = true
   } catch (error) {
-    MessagePlugin.error('加载WriteUp信息失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '加载WriteUp信息失败')
   }
 }
 
 // 提交WriteUp表单
 const handleWriteUpSubmit = async () => {
   if (!writeUpForm.value.title || !writeUpForm.value.title.trim()) {
-    MessagePlugin.warning('请输入报告标题')
+    showWarning('请输入报告标题')
     return
   }
   if (!writeUpForm.value.content || !writeUpForm.value.content.trim()) {
-    MessagePlugin.warning('请输入报告内容')
+    showWarning('请输入报告内容')
     return
   }
   
@@ -778,7 +759,7 @@ const handleWriteUpSubmit = async () => {
       writeUpForm.value.content
     )
     
-    MessagePlugin.success('WriteUp提交成功')
+    showSuccess('WriteUp提交成功')
     showWriteUpDialog.value = false
     writeUpForm.value = {
       competitionId: null,
@@ -788,7 +769,7 @@ const handleWriteUpSubmit = async () => {
     currentWriteUpTeam.value = null
     currentWriteUpCompetition.value = null
   } catch (error) {
-    MessagePlugin.error('提交WriteUp失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '提交WriteUp失败')
   } finally {
     submittingWriteUp.value = false
   }
@@ -799,7 +780,7 @@ const handleViewWriteUp = async (team) => {
   try {
     const competitionId = team.competitionID || team.competition?.competitionID || team.competitionId
     if (!competitionId) {
-      MessagePlugin.error('无法获取竞赛信息')
+      showError('无法获取竞赛信息')
       return
     }
     
@@ -809,30 +790,30 @@ const handleViewWriteUp = async (team) => {
     )
     
     if (!myWriteUp) {
-      MessagePlugin.warning('您尚未提交WriteUp')
+      showWarning('您尚未提交WriteUp')
       return
     }
     
     currentWriteUp.value = myWriteUp
     showViewWriteUpDialog.value = true
   } catch (error) {
-    MessagePlugin.error('加载WriteUp失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '加载WriteUp失败')
   }
 }
 
 // 下载WriteUp
 const handleDownloadWriteUp = async () => {
   if (!currentWriteUp.value || !currentWriteUp.value.writeUpID) {
-    MessagePlugin.warning('没有可下载的WriteUp')
+    showWarning('没有可下载的WriteUp')
     return
   }
   
   try {
     downloadingWriteUp.value = true
     await writeUpService.downloadWriteUp(currentWriteUp.value.writeUpID)
-    MessagePlugin.success('WriteUp下载成功')
+    showSuccess('WriteUp下载成功')
   } catch (error) {
-    MessagePlugin.error('下载WriteUp失败: ' + (error.message || '未知错误'))
+    handleApiError(error, '下载WriteUp失败')
   } finally {
     downloadingWriteUp.value = false
   }

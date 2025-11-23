@@ -204,6 +204,8 @@ import { competitionService } from '@/services/competitionService'
 import { teamService } from '@/services/teamService'
 import ProblemCard from '../challenge/ProblemCard.vue'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { showSuccess, showError, showWarning, handleApiError } from '@/utils/message'
+import { error as logError } from '@/utils/logger'
 
 const route = useRoute()
 const router = useRouter()
@@ -401,7 +403,7 @@ const handlePageChange = (pageInfo) => {
 // 提交Flag
 const handleFlagSubmit = async (problemId, flag) => {
   if (!isCompetitionOngoing.value) {
-    MessagePlugin.warning('竞赛未开始或已结束，无法提交Flag')
+    showWarning('竞赛未开始或已结束，无法提交Flag')
     return
   }
   
@@ -415,7 +417,7 @@ const handleFlagSubmit = async (problemId, flag) => {
       if (problem) {
         problem.solved = true
       }
-      MessagePlugin.success(`Flag正确！获得 ${problem?.score || 0} 分`)
+      showSuccess(`Flag正确！获得 ${problem?.score || 0} 分`)
       // 重新加载列表以更新解决状态
       loadProblems()
       // 重新加载队伍总分
@@ -423,17 +425,17 @@ const handleFlagSubmit = async (problemId, flag) => {
         await loadTeamInfo()
       }
     } else {
-      MessagePlugin.error(result.message || 'Flag错误，请重试')
+      showError(result.message || 'Flag错误，请重试')
     }
   } catch (error) {
-    console.error('提交Flag失败:', error)
+    logError('提交Flag失败:', error)
     // 从错误响应中提取消息，如果是业务错误（400），显示具体原因
     const errorMessage = error.response?.data?.message || error.message || '提交失败'
     // 只显示业务错误信息，系统错误显示通用提示
     if (error.response?.status === 400) {
-      MessagePlugin.error(errorMessage)
+      showError(errorMessage)
     } else {
-      MessagePlugin.error('提交失败，请稍后重试')
+      showError('提交失败，请稍后重试')
     }
   }
 }

@@ -83,7 +83,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+// defineProps and defineEmits are compiler macros, no need to import
 
 const props = defineProps({
   team: {
