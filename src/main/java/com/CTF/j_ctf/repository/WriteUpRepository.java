@@ -19,6 +19,5 @@ public interface WriteUpRepository extends JpaRepository<WriteUp, Integer> {
 
     @Query("SELECT w FROM WriteUp w WHERE w.user.userID = :userID AND w.competition.competitionID = :competitionID")
     List<WriteUp> findByUserAndCompetition(@Param("userID") Integer userID, @Param("competitionID") Integer competitionID);
-    // 按竞赛ID统计报告数量（对接业务统计需求，新增）
     long countByCompetition_CompetitionID(Integer competitionId);
 }

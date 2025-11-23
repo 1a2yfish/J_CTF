@@ -10,17 +10,11 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface CompetitionRepository extends JpaRepository<Competition, Integer> {
 
-    // 基础查询
-    List<Competition> findByCreator_UserID(Integer userID);
     Page<Competition> findByCreator_UserID(Integer userID, Pageable pageable);
-    Page<Competition> findByTitleContaining(String title, Pageable pageable);
-    Page<Competition> findByStatus(String status, Pageable pageable);
-    Page<Competition> findByAuditStatus(String auditStatus, Pageable pageable);
 
     // 状态查询
     @Query("SELECT c FROM Competition c WHERE c.startTime <= :now AND c.endTime >= :now AND c.status = 'PUBLISHED'")
@@ -71,4 +65,30 @@ public interface CompetitionRepository extends JpaRepository<Competition, Intege
     // 检查用户是否创建了指定竞赛
     @Query("SELECT COUNT(c) > 0 FROM Competition c WHERE c.competitionID = :competitionId AND c.creator.userID = :userId")
     boolean isCreator(@Param("competitionId") Integer competitionId, @Param("userId") Integer userId);
+
+    /* 下面为补充的方法，供 Service 调用使用 */
+
+    // 与 Service 中期望的方法名对应的分页查询（公开且指定状态）
+    Page<Competition> findByIsPublicTrueAndStatus(String status, Pageable pageable);
+
+    // 与 Service 中期望的时段查询对应的方法（进行中）
+    Page<Competition> findByStatusAndStartTimeBeforeAndEndTimeAfter(String status, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
+
+    // 即将开始
+    Page<Competition> findByStatusAndStartTimeAfter(String status, LocalDateTime startTime, Pageable pageable);
+
+    // 已结束
+    Page<Competition> findByStatusAndEndTimeBefore(String status, LocalDateTime endTime, Pageable pageable);
+
+    // 按标题或介绍搜索（通用）
+    Page<Competition> findByTitleContainingOrIntroductionContaining(String titleKeyword, String introKeyword, Pageable pageable);
+
+    // 按关键字搜索公开竞赛（Service 使用的别名）
+    @Query("SELECT c FROM Competition c WHERE " +
+            "(c.title LIKE %:keyword% OR c.introduction LIKE %:keyword%) AND " +
+            "c.status = 'PUBLISHED' AND c.isPublic = true")
+    Page<Competition> findPublicCompetitionsByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    // 补充：按创建者ID计数，Service 使用的方法名
+    Long countByCreator_UserID(Integer userID);
 }

@@ -10,50 +10,61 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 @Transactional
 public class AdminServiceImpl implements AdminService {
-    private final OrdinaryUserRepository ordinaryUserRepository;
+    private final UserRepository userRepository;
     private final TeamRepository teamRepository;
     private final CompetitionRepository competitionRepository;
     private final FlagRepository flagRepository;
     private final ScoreRepository scoreRepository;
     private final WriteUpRepository writeUpRepository;
-    private TeamApplicationRepository teamApplicationRepository;
-    private FlagSubmissionRepository flagSubmissionRepository;
+    private final TeamApplicationRepository teamApplicationRepository;
+    private final FlagSubmissionRepository flagSubmissionRepository;
+    private final ChallengeRepository challengeRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
-    public AdminServiceImpl(OrdinaryUserRepository ordinaryUserRepository,
+    public AdminServiceImpl(UserRepository userRepository,
                             TeamRepository teamRepository,
                             CompetitionRepository competitionRepository,
                             FlagRepository flagRepository,
                             ScoreRepository scoreRepository,
-                            WriteUpRepository writeUpRepository) {
-        this.ordinaryUserRepository = ordinaryUserRepository;
+                            WriteUpRepository writeUpRepository,
+                            TeamApplicationRepository teamApplicationRepository,
+                            FlagSubmissionRepository flagSubmissionRepository,
+                            ChallengeRepository challengeRepository,
+                            TeamMemberRepository teamMemberRepository) {
+        this.userRepository = userRepository;
         this.teamRepository = teamRepository;
         this.competitionRepository = competitionRepository;
         this.flagRepository = flagRepository;
         this.scoreRepository = scoreRepository;
         this.writeUpRepository = writeUpRepository;
+        this.teamApplicationRepository = teamApplicationRepository;
+        this.flagSubmissionRepository = flagSubmissionRepository;
+        this.challengeRepository = challengeRepository;
+        this.teamMemberRepository = teamMemberRepository;
     }
 
     // === 用户管理方法 ===
 
     @Override
-    public Page<OrdinaryUser> getAllUsers(Pageable pageable) {
-        return ordinaryUserRepository.findAll(pageable);
+    public Page<User> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable);
     }
 
     @Override
-    public Page<OrdinaryUser> searchUsers(String keyword, Pageable pageable) {
-        return ordinaryUserRepository.findByUserNameContaining(keyword, pageable);
+    public Page<User> searchUsers(String keyword, Pageable pageable) {
+        return userRepository.findByUserNameContaining(keyword, pageable);
     }
 
     @Override
-    public OrdinaryUser getUserDetails(Integer userId) {
-        Optional<OrdinaryUser> userOpt = ordinaryUserRepository.findById(userId);
+    public User getUserDetails(Integer userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
             throw new IllegalArgumentException("用户不存在");
         }
@@ -61,19 +72,71 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public OrdinaryUser updateUser(OrdinaryUser user) {
-        if (!ordinaryUserRepository.existsById(user.getUserID())) {
+    @Transactional
+    public User updateUser(User user) {
+        Optional<User> userOpt = userRepository.findById(user.getUserID());
+        if (userOpt.isEmpty()) {
             throw new IllegalArgumentException("用户不存在");
         }
-        return ordinaryUserRepository.save(user);
+        
+        User existingUser = userOpt.get();
+        
+        // 更新用户名（如果提供且不同）
+        if (user.getUserName() != null && !user.getUserName().equals(existingUser.getUserName())) {
+            // 检查用户名是否已被其他用户使用
+            Optional<User> userWithSameName = userRepository.findByUserName(user.getUserName());
+            if (userWithSameName.isPresent() && !userWithSameName.get().getUserID().equals(existingUser.getUserID())) {
+                throw new IllegalArgumentException("用户名已被使用");
+            }
+            existingUser.setUserName(user.getUserName());
+        }
+        
+        // 更新邮箱（如果提供且不同，仅普通用户）
+        if (user.getUserEmail() != null && !user.getUserEmail().equals(existingUser.getUserEmail())) {
+            // 检查邮箱是否已被其他用户使用
+            Optional<User> userWithSameEmail = userRepository.findByUserEmail(user.getUserEmail());
+            if (userWithSameEmail.isPresent() && !userWithSameEmail.get().getUserID().equals(existingUser.getUserID())) {
+                throw new IllegalArgumentException("邮箱已被使用");
+            }
+            existingUser.setUserEmail(user.getUserEmail());
+        }
+        
+        // 更新手机号（如果提供且不同，仅普通用户）
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().equals(existingUser.getPhoneNumber())) {
+            // 检查手机号是否已被其他用户使用
+            Optional<User> userWithSamePhone = userRepository.findByPhoneNumber(user.getPhoneNumber());
+            if (userWithSamePhone.isPresent() && !userWithSamePhone.get().getUserID().equals(existingUser.getUserID())) {
+                throw new IllegalArgumentException("手机号已被使用");
+            }
+            existingUser.setPhoneNumber(user.getPhoneNumber());
+        }
+        
+        // 更新用户类型（如果提供）
+        if (user.getUserType() != null) {
+            existingUser.setUserType(user.getUserType());
+        }
+        
+        // 更新管理员角色（如果提供且是管理员）
+        if (user.getAdminRole() != null && existingUser.isAdministrator()) {
+            existingUser.setAdminRole(user.getAdminRole());
+        }
+        
+        // 更新用户状态（如果提供且是普通用户）
+        if (user.getUserStatus() != null && existingUser.isOrdinaryUser()) {
+            existingUser.setUserStatus(user.getUserStatus());
+        }
+        
+        // 保存更新后的用户
+        return userRepository.save(existingUser);
     }
 
     @Override
     public boolean disableUser(Integer userId) {
-        Optional<OrdinaryUser> userOpt = ordinaryUserRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            // 这里可以实现用户禁用逻辑，比如设置状态字段
-            // 当前简单返回成功
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent() && userOpt.get().isOrdinaryUser()) {
+            User user = userOpt.get();
+            user.setUserStatus(false);
+            userRepository.save(user);
             return true;
         }
         return false;
@@ -81,21 +144,59 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public boolean enableUser(Integer userId) {
-        Optional<OrdinaryUser> userOpt = ordinaryUserRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            // 启用用户逻辑
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent() && userOpt.get().isOrdinaryUser()) {
+            User user = userOpt.get();
+            user.setUserStatus(true);
+            userRepository.save(user);
             return true;
         }
         return false;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteUser(Integer userId) {
-        if (ordinaryUserRepository.existsById(userId)) {
-            ordinaryUserRepository.deleteById(userId);
-            return true;
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            return false;
         }
-        return false;
+        
+        // 1. 删除该用户的所有Flag提交记录
+        flagSubmissionRepository.deleteByUser_UserID(userId);
+        
+        // 2. 删除该用户的所有得分记录
+        List<Score> userScores = scoreRepository.findByUser_UserID(userId);
+        if (userScores != null && !userScores.isEmpty()) {
+            scoreRepository.deleteAll(userScores);
+        }
+        
+        // 3. 处理该用户创建的团队（队长）
+        List<Team> captainTeams = teamRepository.findByCaptainId(userId);
+        if (captainTeams != null && !captainTeams.isEmpty()) {
+            for (Team team : captainTeams) {
+                // 先删除团队成员关系
+                teamMemberRepository.deleteAllByTeamId(team.getTeamID());
+                // 删除团队申请
+                teamApplicationRepository.deleteByTeam_TeamID(team.getTeamID());
+                // 删除团队
+                teamRepository.delete(team);
+            }
+        }
+        
+        // 4. 删除该用户的所有团队成员关系
+        List<TeamMember> userTeamMembers = teamMemberRepository.findByUserUserID(userId);
+        if (userTeamMembers != null && !userTeamMembers.isEmpty()) {
+            teamMemberRepository.deleteAll(userTeamMembers);
+        }
+        
+        // 5. 删除该用户的团队申请记录
+        teamApplicationRepository.deleteByUser_UserID(userId);
+        
+        // 6. 最后删除用户本身
+        userRepository.deleteById(userId);
+        
+        return true;
     }
 
     // === 战队管理方法 ===
@@ -133,7 +234,8 @@ public class AdminServiceImpl implements AdminService {
 
         Team team = teamOpt.get();
         team.setAuditState(auditState);
-        // 可以添加审核备注字段到Team实体中
+        team.setAuditRemark(auditRemark);
+        team.setAuditTime(LocalDateTime.now());
         return teamRepository.save(team);
     }
 
@@ -223,7 +325,8 @@ public class AdminServiceImpl implements AdminService {
 
         Competition competition = competitionOpt.get();
         competition.setAuditTime(LocalDateTime.now());
-        // 可以添加审核状态字段到Competition实体中
+        competition.setAuditStatus(approved ? "APPROVED" : "REJECTED");
+        competition.setAuditRemark(auditRemark);
 
         return competitionRepository.save(competition);
     }
@@ -245,14 +348,11 @@ public class AdminServiceImpl implements AdminService {
         long teamCount = teamRepository.countByCompetition_CompetitionID(competitionId);
         // 获取提交的Flag数量
         long flagCount = flagSubmissionRepository.countTotalSubmissionsByCompetition(competitionId);
-        // 获取已使用的Flag数量
-        long usedFlagCount = flagSubmissionRepository.countCorrectSubmissionsByChallenge(competitionId);
         // 获取提交的WriteUp数量
         long writeUpCount = writeUpRepository.countByCompetition_CompetitionID(competitionId);
 
         stats.put("teamCount", teamCount);
         stats.put("flagCount", flagCount);
-        stats.put("usedFlagCount", usedFlagCount);
         stats.put("writeUpCount", writeUpCount);
 
         return stats;
@@ -265,17 +365,27 @@ public class AdminServiceImpl implements AdminService {
         Map<String, Object> stats = new HashMap<>();
 
         // 总用户数
-        long totalUsers = ordinaryUserRepository.count();
+        long totalUsers = userRepository.count();
+        // 总普通用户数
+        long totalOrdinaryUsers = userRepository.findByUserType(User.UserType.ORDINARY).size();
+        // 总管理员数
+        long totalAdmins = userRepository.findByUserType(User.UserType.ADMIN).size();
         // 总竞赛数
         long totalCompetitions = competitionRepository.count();
         // 总战队数
         long totalTeams = teamRepository.count();
-        // 今日新增用户（需要扩展实体添加创建时间）
+        // 总题目数
+        long totalChallenges = challengeRepository.count();
+        // 活跃竞赛数
+        long activeCompetitions = competitionRepository.findOngoingCompetitions(LocalDateTime.now()).size();
 
         stats.put("totalUsers", totalUsers);
+        stats.put("totalOrdinaryUsers", totalOrdinaryUsers);
+        stats.put("totalAdmins", totalAdmins);
         stats.put("totalCompetitions", totalCompetitions);
         stats.put("totalTeams", totalTeams);
-        stats.put("activeCompetitions", competitionRepository.findOngoingCompetitions(LocalDateTime.now()).size());
+        stats.put("totalChallenges", totalChallenges);
+        stats.put("activeCompetitions", activeCompetitions);
 
         return stats;
     }

@@ -1,6 +1,7 @@
 package com.CTF.j_ctf.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Immutable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Entity
+@Immutable  // 标记为不可变，因为这是视图
 @Table(name = "Scoresummary")
 public class ScoreSummary {
     // Getter和Setter

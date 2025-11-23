@@ -1,0 +1,403 @@
+/* 黑蓝色主题全局样式 */
+
+/* TDesign 组件主题覆盖 */
+:root {
+  /* 主色调 - 蓝色系 */
+  --td-brand-color: #3b82f6;
+  --td-brand-color-1: #1e3a8a;
+  --td-brand-color-2: #1e40af;
+  --td-brand-color-3: #2563eb;
+  --td-brand-color-4: #3b82f6;
+  --td-brand-color-5: #60a5fa;
+  --td-brand-color-6: #93c5fd;
+  --td-brand-color-7: #bfdbfe;
+  --td-brand-color-8: #dbeafe;
+  --td-brand-color-9: #eff6ff;
+  --td-brand-color-10: #f0f9ff;
+
+  /* 背景色 - 深色系 */
+  --td-bg-color-page: #0a0e27;
+  --td-bg-color-container: #1a1f3a;
+  --td-bg-color-container-hover: #1f2542;
+  --td-bg-color-container-active: #252b4a;
+  --td-bg-color-secondarycontainer: #0f1629;
+  --td-bg-color-component: #1a1f3a;
+  --td-bg-color-component-hover: #1f2542;
+  --td-bg-color-component-active: #252b4a;
+
+  /* 文字颜色 */
+  --td-text-color-primary: #e0e6ed;
+  --td-text-color-secondary: #9ca3af;
+  --td-text-color-placeholder: #6b7280;
+  --td-text-color-disabled: #4b5563;
+  --td-text-color-anti: #ffffff;
+  --td-text-color-brand: #3b82f6;
+
+  /* 边框颜色 */
+  --td-border-level-1-color: #2a3458;
+  --td-border-level-2-color: #3a4568;
+  --td-component-border: #2a3458;
+  --td-component-stroke: #3a4568;
+
+  /* 阴影 */
+  --td-shadow-1: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --td-shadow-2: 0 4px 20px rgba(59, 130, 246, 0.2);
+  --td-shadow-3: 0 8px 24px rgba(59, 130, 246, 0.3);
+
+  /* 错误/警告/成功颜色 */
+  --td-error-color: #ef4444;
+  --td-warning-color: #f59e0b;
+  --td-success-color: #10b981;
+  --td-info-color: #3b82f6;
+}
+
+/* 全局覆盖 TDesign 组件样式 */
+.t-button {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-button--theme-primary {
+  background-color: var(--td-brand-color) !important;
+  border-color: var(--td-brand-color) !important;
+  color: #ffffff !important;
+}
+
+.t-button--theme-primary:hover {
+  background-color: var(--td-brand-color-3) !important;
+  border-color: var(--td-brand-color-3) !important;
+}
+
+.t-input {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-input__inner {
+  background-color: var(--td-bg-color-component) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-input:focus-within {
+  border-color: var(--td-brand-color) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.t-textarea {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-textarea__inner {
+  background-color: var(--td-bg-color-component) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-select {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-select__single {
+  background-color: var(--td-bg-color-component) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-select__input {
+  background-color: var(--td-bg-color-component) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-select__dropdown {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+.t-option {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-option:hover {
+  background-color: var(--td-bg-color-container-hover) !important;
+}
+
+.t-option--selected {
+  background-color: var(--td-brand-color) !important;
+  color: #ffffff !important;
+}
+
+.t-table {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-table__header {
+  background-color: var(--td-bg-color-secondarycontainer) !important;
+}
+
+.t-table th {
+  background-color: var(--td-bg-color-secondarycontainer) !important;
+  color: var(--td-text-color-primary) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+.t-table td {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+.t-table__row:hover {
+  background-color: var(--td-bg-color-container-hover) !important;
+}
+
+.t-card {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-dialog {
+  background-color: var(--td-bg-color-container) !important;
+}
+
+.t-dialog__header {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+  border-bottom-color: var(--td-border-level-1-color) !important;
+}
+
+.t-dialog__body {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-dialog__footer {
+  background-color: var(--td-bg-color-container) !important;
+  border-top-color: var(--td-border-level-1-color) !important;
+}
+
+.t-form-item__label {
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-tabs {
+  background-color: var(--td-bg-color-container) !important;
+}
+
+.t-tabs__nav {
+  background-color: var(--td-bg-color-container) !important;
+}
+
+.t-tabs__nav-item {
+  color: var(--td-text-color-secondary) !important;
+}
+
+.t-tabs__nav-item--active {
+  color: var(--td-brand-color) !important;
+}
+
+.t-tabs__content {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-tag {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-tag--theme-primary {
+  background-color: var(--td-brand-color) !important;
+  border-color: var(--td-brand-color) !important;
+  color: #ffffff !important;
+}
+
+.t-tag--theme-success {
+  background-color: var(--td-success-color) !important;
+  border-color: var(--td-success-color) !important;
+  color: #ffffff !important;
+}
+
+.t-tag--theme-warning {
+  background-color: var(--td-warning-color) !important;
+  border-color: var(--td-warning-color) !important;
+  color: #ffffff !important;
+}
+
+.t-tag--theme-danger {
+  background-color: var(--td-error-color) !important;
+  border-color: var(--td-error-color) !important;
+  color: #ffffff !important;
+}
+
+.t-date-picker {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-date-picker__input {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-date-picker__dropdown {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+.t-input-number {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-input-number__input {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-switch {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-switch__label {
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-loading {
+  background-color: rgba(10, 14, 39, 0.8) !important;
+}
+
+.t-empty {
+  color: var(--td-text-color-secondary) !important;
+}
+
+.t-empty__description {
+  color: var(--td-text-color-secondary) !important;
+}
+
+/* 消息提示框 */
+.t-message {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-message--success {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: var(--td-success-color) !important;
+  color: var(--td-success-color) !important;
+}
+
+.t-message--warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-color: var(--td-warning-color) !important;
+  color: var(--td-warning-color) !important;
+}
+
+.t-message--error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--td-error-color) !important;
+  color: var(--td-error-color) !important;
+}
+
+.t-message--info {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-color: var(--td-brand-color) !important;
+  color: var(--td-brand-color) !important;
+}
+
+/* 对话框确认框 */
+.t-dialog__confirm {
+  background-color: var(--td-bg-color-container) !important;
+}
+
+/* 分页器 */
+.t-pagination {
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-pagination__btn {
+  background-color: var(--td-bg-color-component) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-pagination__btn:hover {
+  background-color: var(--td-bg-color-container-hover) !important;
+  border-color: var(--td-brand-color) !important;
+}
+
+.t-pagination__number {
+  background-color: var(--td-bg-color-component) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-pagination__number--current {
+  background-color: var(--td-brand-color) !important;
+  color: #ffffff !important;
+}
+
+/* 下拉菜单 */
+.t-dropdown {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+.t-dropdown__menu {
+  background-color: var(--td-bg-color-container) !important;
+}
+
+.t-dropdown__item {
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-dropdown__item:hover {
+  background-color: var(--td-bg-color-container-hover) !important;
+}
+
+/* 工具提示 */
+.t-tooltip {
+  background-color: var(--td-bg-color-container) !important;
+  color: var(--td-text-color-primary) !important;
+  border-color: var(--td-border-level-1-color) !important;
+}
+
+/* 通知 */
+.t-notification {
+  background-color: var(--td-bg-color-container) !important;
+  border-color: var(--td-border-level-1-color) !important;
+  color: var(--td-text-color-primary) !important;
+}
+
+/* 步骤条 */
+.t-steps {
+  color: var(--td-text-color-primary) !important;
+}
+
+.t-steps__item--finish .t-steps__item__inner {
+  color: var(--td-brand-color) !important;
+}
+
+/* 进度条 */
+.t-progress {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-progress__bar {
+  background-color: var(--td-brand-color) !important;
+}
+
+/* 骨架屏 */
+.t-skeleton {
+  background-color: var(--td-bg-color-component) !important;
+}
+
+.t-skeleton__row {
+  background-color: var(--td-bg-color-container-hover) !important;
+}
+

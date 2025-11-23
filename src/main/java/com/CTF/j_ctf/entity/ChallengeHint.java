@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "Challengehint")
 public class ChallengeHint {
-    // Getter和Setter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "HintID")
@@ -22,7 +21,7 @@ public class ChallengeHint {
     private Challenge challenge;
 
     @Column(name = "Content", nullable = false, columnDefinition = "TEXT")
-    private String content;
+    private String content; // 修复：字段名应该是content而不是hintContent
 
     @Column(name = "Cost")
     private Integer cost; // 提示消耗的分数
@@ -30,9 +29,17 @@ public class ChallengeHint {
     @Column(name = "CreateTime")
     private LocalDateTime createTime;
 
+    @Column(name = "UpdateTime")
+    private LocalDateTime updateTime;
+
     // 构造方法
     public ChallengeHint() {
         this.createTime = LocalDateTime.now();
+        this.updateTime = LocalDateTime.now();
+    }
+
+    public String getHintContent() {
+        return content;
     }
 
     public ChallengeHint(Challenge challenge, String content, Integer cost) {
@@ -41,5 +48,4 @@ public class ChallengeHint {
         this.content = content;
         this.cost = cost;
     }
-
 }

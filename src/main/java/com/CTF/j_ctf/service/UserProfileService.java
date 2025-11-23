@@ -1,17 +1,16 @@
 package com.CTF.j_ctf.service;
 
-import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.User;
 
 import java.util.Optional;
 
 public interface UserProfileService {
 
-    // 查看个人信息
-    Optional<OrdinaryUser> getUserProfile(Integer userId);
+    // 获取用户个人信息
+    Optional<User> getUserProfile(Integer userId);
 
-    // 修改个人信息
-    OrdinaryUser updateUserProfile(Integer userId, OrdinaryUser updatedProfile);
+    // 更新用户个人信息
+    User updateUserProfile(Integer userId, User updatedProfile);
 
     // 修改密码
     boolean changePassword(Integer userId, String oldPassword, String newPassword);
@@ -19,10 +18,10 @@ public interface UserProfileService {
     // 注销账户
     boolean deactivateAccount(Integer userId, String password);
 
-    // 密码找回 - 发送验证码
-    boolean sendPasswordResetCode(String identifier); // identifier可以是邮箱或手机号
+    // 发送密码重置验证码
+    boolean sendPasswordResetCode(String identifier);
 
-    // 密码找回 - 验证并重置密码
+    // 重置密码
     boolean resetPassword(String identifier, String verificationCode, String newPassword);
 
     // 检查用户名是否可用

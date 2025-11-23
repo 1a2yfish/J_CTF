@@ -1,12 +1,17 @@
+// src/main/java/com/CTF/j_ctf/repository/TeamApplicationRepository.java
 package com.CTF.j_ctf.repository;
 
+import com.CTF.j_ctf.entity.Team;
 import com.CTF.j_ctf.entity.TeamApplication;
+import com.CTF.j_ctf.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,22 +38,37 @@ public interface TeamApplicationRepository extends JpaRepository<TeamApplication
 
     @Query("SELECT COUNT(ta) FROM TeamApplication ta WHERE ta.team.teamID = :teamID AND ta.status = 'PENDING'")
     Long countPendingApplicationsByTeam(@Param("teamID") Integer teamID);
-    /**
-     * 统计指定竞赛下、指定审核状态的战队申请数量
-     * 关联路径：TeamApplication -> Team -> Competition -> competitionID
-     * @param competitionID 竞赛ID
-     * @param status 审核状态（PENDING/APPROVED/REJECTED）
-     * @return 对应状态的申请数量
-     */
+
     long countByTeam_Competition_CompetitionIDAndStatus(Integer competitionID, String status);
 
-    /**
-     * 统计指定竞赛下的战队申请总数
-     * @param competitionID 竞赛ID
-     * @return 该竞赛下的所有战队申请数量
-     */
     long countByTeam_Competition_CompetitionID(Integer competitionID);
 
-    // 可选：补充分页查询方法，满足后台列表展示需求
     Page<TeamApplication> findByTeam_Competition_CompetitionIDAndStatus(Integer competitionID, String status, Pageable pageable);
+
+    Optional<TeamApplication> findByTeamAndApplicantAndStatus(Team team, User applicant, String status);
+
+    // 原有：按 teamId 和 status 分页
+    @Query("SELECT ta FROM TeamApplication ta WHERE ta.team.teamID = :teamId AND ta.status = :status")
+    Page<TeamApplication> findByTeamAndStatus(@Param("teamId") Integer teamId, @Param("status") String status, Pageable pageable);
+
+    Long countByTeam_TeamIDAndStatus(Integer teamId, String status);
+
+    Long countByTeam_TeamID(Integer teamId);
+
+    /* 新增：补齐 Service 中使用的常见签名（按实体参数的计数/删除别名） */
+
+    // 按实体计数（countByTeam 和 countByTeamAndStatus 在 Service 中可能使用实体参数）
+    long countByTeam(Team team);
+    long countByTeamAndStatus(Team team, String status);
+
+    // 按 teamId 删除申请（返回删除数量）
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    int deleteByTeam_TeamID(Integer teamID);
+    
+    // 按用户ID删除申请（返回删除数量）
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM TeamApplication ta WHERE ta.applicant.userID = :userId")
+    int deleteByUser_UserID(@Param("userId") Integer userId);
 }

@@ -10,12 +10,12 @@ export const useCompetitionStore = defineStore('competition', {
     }),
 
     actions: {
-        async getPublishedCompetitions() {
+        async getPublishedCompetitions(page = 0, size = 20, type = 'public', keyword = null) {
             this.loading = true
             this.error = null
 
             try {
-                const competitions = await competitionService.getPublishedCompetitions()
+                const competitions = await competitionService.getPublishedCompetitions(page, size, type, keyword)
                 this.competitions = competitions
                 return competitions
             } catch (error) {

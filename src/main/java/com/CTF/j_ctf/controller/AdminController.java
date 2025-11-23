@@ -1,9 +1,10 @@
 package com.CTF.j_ctf.controller;
 
 import com.CTF.j_ctf.entity.Competition;
-import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.Team;
+import com.CTF.j_ctf.entity.User;
 import com.CTF.j_ctf.service.AdminService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,10 +29,8 @@ public class AdminController {
      * 检查管理员权限
      */
     private void checkAdminPermission(HttpServletRequest request) {
-        // 这里应该从Session或JWT Token中验证管理员权限
-        // 示例实现，实际应该集成Spring Security
-        Object userRole = request.getAttribute("userRole");
-        if (!"ADMIN".equals(userRole)) {
+        HttpSession session = request.getSession(false);
+        if (session == null || !"ADMIN".equals(session.getAttribute("userRole"))) {
             throw new SecurityException("权限不足");
         }
     }
@@ -57,14 +56,14 @@ public class AdminController {
     public ResponseEntity<?> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "registerTime") String sort,
+            @RequestParam(defaultValue = "createTime") String sort,
             @RequestParam(required = false) String keyword,
             HttpServletRequest request) {
         try {
             checkAdminPermission(request);
 
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, sort));
-            Page<OrdinaryUser> users;
+            Page<User> users;
 
             if (keyword != null && !keyword.trim().isEmpty()) {
                 users = adminService.searchUsers(keyword, pageable);
@@ -90,7 +89,9 @@ public class AdminController {
     public ResponseEntity<?> getUserDetails(@PathVariable Integer userId, HttpServletRequest request) {
         try {
             checkAdminPermission(request);
-            OrdinaryUser user = adminService.getUserDetails(userId);
+            User user = adminService.getUserDetails(userId);
+            // 隐藏敏感信息
+            user.setUserPassword(null);
             return ResponseEntity.ok(createSuccessResponse("获取成功", user));
         } catch (SecurityException e) {
             return ResponseEntity.status(403).body(createErrorResponse("权限不足"));
@@ -103,19 +104,22 @@ public class AdminController {
 
     @PutMapping("/users/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable Integer userId,
-                                        @RequestBody OrdinaryUser user,
+                                        @RequestBody User user,
                                         HttpServletRequest request) {
         try {
             checkAdminPermission(request);
             user.setUserID(userId); // 确保ID一致
-            OrdinaryUser updatedUser = adminService.updateUser(user);
+            User updatedUser = adminService.updateUser(user);
+            // 隐藏敏感信息
+            updatedUser.setUserPassword(null);
             return ResponseEntity.ok(createSuccessResponse("更新成功", updatedUser));
         } catch (SecurityException e) {
             return ResponseEntity.status(403).body(createErrorResponse("权限不足"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(createErrorResponse("更新用户失败"));
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(createErrorResponse("更新用户失败: " + e.getMessage()));
         }
     }
 
@@ -161,12 +165,16 @@ public class AdminController {
             if (success) {
                 return ResponseEntity.ok(createSuccessResponse("删除用户成功"));
             } else {
-                return ResponseEntity.badRequest().body(createErrorResponse("删除用户失败"));
+                return ResponseEntity.badRequest().body(createErrorResponse("删除用户失败：用户不存在"));
             }
         } catch (SecurityException e) {
             return ResponseEntity.status(403).body(createErrorResponse("权限不足"));
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(createErrorResponse("删除用户失败: " + e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(createErrorResponse("删除用户失败"));
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(createErrorResponse("删除用户失败: " + e.getMessage()));
         }
     }
 
@@ -243,6 +251,23 @@ public class AdminController {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(createErrorResponse("审核战队失败"));
+        }
+    }
+
+    @DeleteMapping("/teams/{teamId}")
+    public ResponseEntity<?> deleteTeam(@PathVariable Integer teamId, HttpServletRequest request) {
+        try {
+            checkAdminPermission(request);
+            boolean success = adminService.deleteTeam(teamId);
+            if (success) {
+                return ResponseEntity.ok(createSuccessResponse("删除战队成功"));
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("删除战队失败"));
+            }
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(createErrorResponse("权限不足"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("删除战队失败"));
         }
     }
 
@@ -365,6 +390,23 @@ public class AdminController {
         }
     }
 
+    @DeleteMapping("/competitions/{competitionId}")
+    public ResponseEntity<?> deleteCompetition(@PathVariable Integer competitionId, HttpServletRequest request) {
+        try {
+            checkAdminPermission(request);
+            boolean success = adminService.deleteCompetition(competitionId);
+            if (success) {
+                return ResponseEntity.ok(createSuccessResponse("删除竞赛成功"));
+            } else {
+                return ResponseEntity.badRequest().body(createErrorResponse("删除竞赛失败"));
+            }
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(createErrorResponse("权限不足"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(createErrorResponse("删除竞赛失败"));
+        }
+    }
+
     @GetMapping("/competitions/{competitionId}/stats")
     public ResponseEntity<?> getCompetitionStatistics(@PathVariable Integer competitionId, HttpServletRequest request) {
         try {
@@ -385,6 +427,7 @@ public class AdminController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", message);
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 
@@ -396,6 +439,7 @@ public class AdminController {
         response.put("success", true);
         response.put("message", message);
         response.put("data", data);
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 
@@ -406,6 +450,7 @@ public class AdminController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
         response.put("message", message);
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 }

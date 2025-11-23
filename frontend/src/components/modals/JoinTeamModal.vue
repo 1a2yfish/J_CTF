@@ -8,8 +8,8 @@
   >
     <div v-if="!hasTeam">
       <t-form :data="formData" label-width="90px" @submit="createTeam">
-        <t-form-item label="团队名称" name="name" :rules="[{ required: true, message: '请输入团队名称' }]">
-          <t-input v-model="formData.name" placeholder="请输入团队名称" />
+        <t-form-item label="团队名称" name="teamName" :rules="[{ required: true, message: '请输入团队名称' }]">
+          <t-input v-model="formData.teamName" placeholder="请输入团队名称" />
         </t-form-item>
         <t-form-item label="邀请码" name="inviteCode">
           <t-input v-model="formData.inviteCode" placeholder="如果有邀请码请填写" />
@@ -26,7 +26,7 @@
     <div v-else>
       <div style="text-align: center; padding: 20px 0;">
         <div style="font-size: 1.5rem; margin-bottom: 10px;">🛡️</div>
-        <h3 style="margin-bottom: 20px;">{{ currentTeam.name }}</h3>
+        <h3 style="margin-bottom: 20px;">{{ currentTeam.teamName || currentTeam.name }}</h3>
         <div style="display: flex; justify-content: center; margin-bottom: 20px;">
           <div
               class="member-avatar"
@@ -68,7 +68,7 @@ const hasTeam = ref(false)
 const currentTeam = ref(null)
 
 const formData = ref({
-  name: '',
+  teamName: '',
   inviteCode: ''
 })
 
@@ -77,7 +77,7 @@ const handleClose = () => {
 }
 
 const createTeam = async () => {
-  if (!formData.value.name) {
+  if (!formData.value.teamName) {
     Message.warning('请输入团队名称')
     return
   }
@@ -85,7 +85,8 @@ const createTeam = async () => {
   try {
     loading.value = true
     await teamStore.createTeam({
-      name: formData.value.name,
+      teamName: formData.value.teamName,
+      competitionID: props.competitionId,
       competitionId: props.competitionId,
       inviteCode: formData.value.inviteCode
     })

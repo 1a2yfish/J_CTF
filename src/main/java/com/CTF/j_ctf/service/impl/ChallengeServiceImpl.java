@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -23,19 +24,22 @@ public class ChallengeServiceImpl implements ChallengeService {
     private final UserRepository userRepository;
     private final CompetitionRepository competitionRepository;
     private final ScoreRepository scoreRepository;
+    private final TeamRepository teamRepository;
 
     public ChallengeServiceImpl(ChallengeRepository challengeRepository,
                                 FlagSubmissionRepository flagSubmissionRepository,
                                 ChallengeHintRepository challengeHintRepository,
                                 UserRepository userRepository,
                                 CompetitionRepository competitionRepository,
-                                ScoreRepository scoreRepository) {
+                                ScoreRepository scoreRepository,
+                                TeamRepository teamRepository) {
         this.challengeRepository = challengeRepository;
         this.flagSubmissionRepository = flagSubmissionRepository;
         this.challengeHintRepository = challengeHintRepository;
         this.userRepository = userRepository;
         this.competitionRepository = competitionRepository;
         this.scoreRepository = scoreRepository;
+        this.teamRepository = teamRepository;
     }
 
     @Override
@@ -46,6 +50,14 @@ public class ChallengeServiceImpl implements ChallengeService {
         // 检查题目标题在同一个竞赛中是否唯一
         if (challengeRepository.existsByTitleAndCompetition(challenge.getTitle(), challenge.getCompetition().getCompetitionID())) {
             throw new IllegalArgumentException("该竞赛中已存在同名题目");
+        }
+
+        // 设置默认值
+        if (challenge.getIsActive() == null) {
+            challenge.setIsActive(true);
+        }
+        if (challenge.getSolveCount() == null) {
+            challenge.setSolveCount(0);
         }
 
         challenge.setCreateTime(LocalDateTime.now());
@@ -104,6 +116,15 @@ public class ChallengeServiceImpl implements ChallengeService {
             existing.setHint(challenge.getHint());
         }
 
+        if (challenge.getSolveCount() != null) {
+            existing.setSolveCount(challenge.getSolveCount());
+        }
+
+        // 更新创建者ID（如果需要）
+        if (challenge.getCreatorId() != null) {
+            existing.setCreatorId(challenge.getCreatorId());
+        }
+
         existing.setUpdateTime(LocalDateTime.now());
 
         return challengeRepository.save(existing);
@@ -114,6 +135,10 @@ public class ChallengeServiceImpl implements ChallengeService {
         if (!challengeRepository.existsById(challengeId)) {
             return false;
         }
+
+        // 先删除相关的提交记录和提示
+        flagSubmissionRepository.deleteByChallenge_ChallengeID(challengeId);
+        challengeHintRepository.deleteByChallenge_ChallengeID(challengeId);
 
         challengeRepository.deleteById(challengeId);
         return true;
@@ -146,15 +171,22 @@ public class ChallengeServiceImpl implements ChallengeService {
 
     @Override
     public Page<Challenge> searchChallenges(String keyword, Pageable pageable) {
-        return challengeRepository.findByTitleOrDescriptionContaining(keyword, pageable);
+        return challengeRepository.findByTitleContainingOrDescriptionContaining(keyword, keyword, pageable);
     }
 
     @Override
     public Page<Challenge> searchChallengesByCompetition(String keyword, Integer competitionId, Pageable pageable) {
-        return challengeRepository.findByTitleOrDescriptionContainingAndCompetition(keyword, competitionId, pageable);
+        return challengeRepository.findByTitleContainingOrDescriptionContainingAndCompetition_CompetitionID(keyword, keyword, competitionId, pageable);
     }
 
     @Override
+    public Page<Challenge> getChallengesByMultipleConditions(Integer competitionId, String category, String difficulty, Pageable pageable) {
+        // 使用Repository的多条件查询方法，支持同时应用多个筛选条件
+        return challengeRepository.findByMultipleConditions(category, difficulty, competitionId, true, pageable);
+    }
+
+    @Override
+    @Transactional
     public FlagSubmission submitFlag(Integer challengeId, Integer userId, String submittedFlag, String ipAddress) {
         Optional<Challenge> challengeOpt = challengeRepository.findById(challengeId);
         Optional<User> userOpt = userRepository.findById(userId);
@@ -177,15 +209,30 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         // 检查竞赛是否在进行中
-        if (!challenge.getCompetition().isOngoing()) {
+        Competition competition = challenge.getCompetition();
+        if (competition == null || !isCompetitionOngoing(competition)) {
             throw new IllegalArgumentException("竞赛已结束或未开始");
         }
 
-        FlagSubmission submission = new FlagSubmission(user, challenge, submittedFlag);
+        // 检查用户是否加入了该竞赛的团队
+        boolean isParticipant = teamRepository.existsByCompetition_CompetitionIDAndMembers_UserID(
+                competition.getCompetitionID(), userId);
+        if (!isParticipant) {
+            throw new IllegalArgumentException("您尚未加入该竞赛的团队，无法提交Flag");
+        }
+
+        FlagSubmission submission = new FlagSubmission();
+        submission.setUser(user);
+        submission.setChallenge(challenge);
+        submission.setCompetition(competition); // 设置竞赛，这是必需的字段
+        submission.setSubmittedFlag(submittedFlag);
         submission.setIpAddress(ipAddress);
+        submission.setSubmitTime(LocalDateTime.now());
 
         boolean isCorrect = challenge.getFlag().equals(submittedFlag);
         submission.setIsCorrect(isCorrect);
+
+        FlagSubmission savedSubmission = flagSubmissionRepository.save(submission);
 
         if (isCorrect) {
             // 增加解题人数
@@ -193,11 +240,15 @@ public class ChallengeServiceImpl implements ChallengeService {
             challengeRepository.save(challenge);
 
             // 记录得分
-            Score score = new Score(user, challenge.getCompetition(), challenge.getPoints());
+            Score score = new Score();
+            score.setUser(user);
+            score.setCompetition(competition);
+            score.setPoints(challenge.getPoints());
+            score.setScoreTime(LocalDateTime.now());
             scoreRepository.save(score);
         }
 
-        return flagSubmissionRepository.save(submission);
+        return savedSubmission;
     }
 
     @Override
@@ -211,10 +262,25 @@ public class ChallengeServiceImpl implements ChallengeService {
     }
 
     @Override
+    public Page<FlagSubmission> getUserSubmissionsByChallenge(Integer challengeId, Integer userId, Pageable pageable) {
+        return flagSubmissionRepository.findByChallenge_ChallengeIDAndUser_UserID(challengeId, userId, pageable);
+    }
+
+    @Override
     public boolean hasUserSolvedChallenge(Integer challengeId, Integer userId) {
         Optional<FlagSubmission> submission = flagSubmissionRepository
-                .findCorrectSubmissionByUserAndChallenge(userId, challengeId);
+                .findFirstByUser_UserIDAndChallenge_ChallengeIDAndIsCorrectTrue(userId, challengeId);
         return submission.isPresent();
+    }
+
+    @Override
+    public List<Integer> getSolvedChallengeIdsByUser(Integer userId) {
+        List<FlagSubmission> submissions = flagSubmissionRepository
+                .findByUser_UserIDAndIsCorrectTrue(userId);
+        return submissions.stream()
+                .map(submission -> submission.getChallenge().getChallengeID())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -225,7 +291,29 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         hint.setChallenge(challengeOpt.get());
+        hint.setCreateTime(LocalDateTime.now());
         return challengeHintRepository.save(hint);
+    }
+
+    @Override
+    public ChallengeHint updateHint(ChallengeHint hint) {
+        Optional<ChallengeHint> existingHintOpt = challengeHintRepository.findById(hint.getHintID());
+        if (existingHintOpt.isEmpty()) {
+            throw new IllegalArgumentException("提示不存在");
+        }
+
+        ChallengeHint existingHint = existingHintOpt.get();
+
+        if (hint.getContent() != null) {
+            existingHint.setContent(hint.getContent());
+        }
+        if (hint.getCost() != null) {
+            existingHint.setCost(hint.getCost());
+        }
+
+        existingHint.setUpdateTime(LocalDateTime.now());
+
+        return challengeHintRepository.save(existingHint);
     }
 
     @Override
@@ -244,19 +332,47 @@ public class ChallengeServiceImpl implements ChallengeService {
     }
 
     @Override
+    public Integer getChallengeIdByHintId(Integer hintId) {
+        Optional<ChallengeHint> hintOpt = challengeHintRepository.findById(hintId);
+        if (hintOpt.isPresent()) {
+            return hintOpt.get().getChallenge().getChallengeID();
+        }
+        throw new IllegalArgumentException("提示不存在");
+    }
+
+    @Override
+    public boolean isChallengeCreator(Integer challengeId, Integer userId) {
+        Optional<Challenge> challengeOpt = challengeRepository.findById(challengeId);
+        return challengeOpt.isPresent() &&
+                challengeOpt.get().getCreatorId() != null &&
+                challengeOpt.get().getCreatorId().equals(userId);
+    }
+
+    @Override
+    public boolean isChallengeActive(Integer challengeId) {
+        Optional<Challenge> challengeOpt = challengeRepository.findById(challengeId);
+        return challengeOpt.map(Challenge::getIsActive).orElse(false);
+    }
+
+    @Override
     public Map<String, Object> getChallengeStatistics(Integer competitionId) {
         Map<String, Object> stats = new HashMap<>();
 
-        Long totalChallenges = challengeRepository.countByCompetition(competitionId);
-        Long webChallenges = challengeRepository.countByCompetitionAndCategory(competitionId, "Web");
-        Long pwnChallenges = challengeRepository.countByCompetitionAndCategory(competitionId, "Pwn");
-        Long cryptoChallenges = challengeRepository.countByCompetitionAndCategory(competitionId, "Crypto");
-        Long reverseChallenges = challengeRepository.countByCompetitionAndCategory(competitionId, "Reverse");
-        Long miscChallenges = challengeRepository.countByCompetitionAndCategory(competitionId, "Misc");
+        Long totalChallenges = challengeRepository.countByCompetition_CompetitionID(competitionId);
+        Long webChallenges = challengeRepository.countByCompetition_CompetitionIDAndCategory(competitionId, "Web");
+        Long pwnChallenges = challengeRepository.countByCompetition_CompetitionIDAndCategory(competitionId, "Pwn");
+        Long cryptoChallenges = challengeRepository.countByCompetition_CompetitionIDAndCategory(competitionId, "Crypto");
+        Long reverseChallenges = challengeRepository.countByCompetition_CompetitionIDAndCategory(competitionId, "Reverse");
+        Long miscChallenges = challengeRepository.countByCompetition_CompetitionIDAndCategory(competitionId, "Misc");
 
-        Long easyChallenges = challengeRepository.countByCompetitionAndDifficulty(competitionId, "Easy");
-        Long mediumChallenges = challengeRepository.countByCompetitionAndDifficulty(competitionId, "Medium");
-        Long hardChallenges = challengeRepository.countByCompetitionAndDifficulty(competitionId, "Hard");
+        Long easyChallenges = challengeRepository.countByCompetition_CompetitionIDAndDifficulty(competitionId, "Easy");
+        Long mediumChallenges = challengeRepository.countByCompetition_CompetitionIDAndDifficulty(competitionId, "Medium");
+        Long hardChallenges = challengeRepository.countByCompetition_CompetitionIDAndDifficulty(competitionId, "Hard");
+
+        // 计算解决率
+        List<Challenge> challenges = challengeRepository.findByCompetition_CompetitionID(competitionId);
+        long totalSolves = challenges.stream().mapToLong(Challenge::getSolveCount).sum();
+        double averageSolveRate = totalChallenges > 0 ? (double) totalSolves / totalChallenges : 0;
 
         stats.put("totalChallenges", totalChallenges);
         stats.put("webChallenges", webChallenges);
@@ -267,24 +383,42 @@ public class ChallengeServiceImpl implements ChallengeService {
         stats.put("easyChallenges", easyChallenges);
         stats.put("mediumChallenges", mediumChallenges);
         stats.put("hardChallenges", hardChallenges);
+        stats.put("totalSolves", totalSolves);
+        stats.put("averageSolveRate", Math.round(averageSolveRate * 100.0) / 100.0);
 
         return stats;
     }
 
     @Override
     public Long getChallengeCountByCompetition(Integer competitionId) {
-        return challengeRepository.countByCompetition(competitionId);
+        return challengeRepository.countByCompetition_CompetitionID(competitionId);
     }
 
     @Override
     public List<String> getCategoriesByCompetition(Integer competitionId) {
-        return challengeRepository.findDistinctCategoriesByCompetition(competitionId);
+        return challengeRepository.findDistinctCategoriesByCompetition_CompetitionID(competitionId);
     }
 
     @Override
-    public boolean isChallengeActive(Integer challengeId) {
-        Optional<Challenge> challengeOpt = challengeRepository.findById(challengeId);
-        return challengeOpt.map(Challenge::getIsActive).orElse(false);
+    public Long getTotalSubmissionsByChallenge(Integer challengeId) {
+        return flagSubmissionRepository.countByChallenge_ChallengeID(challengeId);
+    }
+
+    @Override
+    public Long getCorrectSubmissionsByChallenge(Integer challengeId) {
+        return flagSubmissionRepository.countByChallenge_ChallengeIDAndIsCorrectTrue(challengeId);
+    }
+
+    @Override
+    public Double getSolveRateByChallenge(Integer challengeId) {
+        Long total = getTotalSubmissionsByChallenge(challengeId);
+        Long correct = getCorrectSubmissionsByChallenge(challengeId);
+
+        if (total == 0) {
+            return 0.0;
+        }
+
+        return (double) correct / total * 100;
     }
 
     /**
@@ -318,5 +452,13 @@ public class ChallengeServiceImpl implements ChallengeService {
         if (challenge.getCompetition() == null) {
             throw new IllegalArgumentException("必须指定竞赛");
         }
+    }
+
+    /**
+     * 检查竞赛是否在进行中
+     */
+    private boolean isCompetitionOngoing(Competition competition) {
+        LocalDateTime now = LocalDateTime.now();
+        return now.isAfter(competition.getStartTime()) && now.isBefore(competition.getEndTime());
     }
 }

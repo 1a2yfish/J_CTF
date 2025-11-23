@@ -46,15 +46,24 @@ public class WriteUpServiceImpl implements WriteUpService {
             throw new IllegalArgumentException("竞赛不存在");
         }
 
-        // 检查是否已经提交过解题报告
-        if (existsWriteUpByUserAndCompetition(userId, competitionId)) {
-            throw new IllegalArgumentException("您已经为该竞赛提交过解题报告");
-        }
-
         User user = userOpt.get();
         Competition competition = competitionOpt.get();
 
-        WriteUp writeUp = new WriteUp(user, competition, title, content);
+        // 检查是否已经提交过解题报告，如果存在则更新，否则创建
+        List<WriteUp> existingWriteUps = writeUpRepository.findByUserAndCompetition(userId, competitionId);
+        WriteUp writeUp;
+        
+        if (!existingWriteUps.isEmpty()) {
+            // 如果已存在，更新最新的WriteUp（保留最新一版）
+            writeUp = existingWriteUps.get(0); // 取第一个（通常只有一个）
+            writeUp.setTitle(title);
+            writeUp.setContent(content);
+            writeUp.setCreateTime(java.time.LocalDateTime.now()); // 更新创建时间
+        } else {
+            // 如果不存在，创建新的WriteUp
+            writeUp = new WriteUp(user, competition, title, content);
+        }
+        
         return writeUpRepository.save(writeUp);
     }
 

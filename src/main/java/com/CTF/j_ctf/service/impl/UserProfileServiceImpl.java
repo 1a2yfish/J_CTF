@@ -1,19 +1,14 @@
 package com.CTF.j_ctf.service.impl;
 
-import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.User;
-import com.CTF.j_ctf.repository.OrdinaryUserRepository;
+import com.CTF.j_ctf.entity.User.UserType;
 import com.CTF.j_ctf.repository.UserRepository;
 import com.CTF.j_ctf.service.UserProfileService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -21,7 +16,7 @@ import java.util.regex.Pattern;
 @Transactional
 public class UserProfileServiceImpl implements UserProfileService {
     private final UserRepository userRepository;
-    private final OrdinaryUserRepository ordinaryUserRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     // 用于存储验证码（生产环境应该使用Redis等）
     private final ConcurrentHashMap<String, String> verificationCodes = new ConcurrentHashMap<>();
@@ -35,26 +30,35 @@ public class UserProfileServiceImpl implements UserProfileService {
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$");
 
-    public UserProfileServiceImpl(UserRepository userRepository,
-                                  OrdinaryUserRepository ordinaryUserRepository) {
+    public UserProfileServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.ordinaryUserRepository = ordinaryUserRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public Optional<OrdinaryUser> getUserProfile(Integer userId) {
-        return ordinaryUserRepository.findById(userId);
+    public Optional<User> getUserProfile(Integer userId) {
+        Optional<User> user = userRepository.findById(userId);
+        // 只返回普通用户的完整信息
+        if (user.isPresent() && user.get().isOrdinaryUser()) {
+            return user;
+        }
+        return Optional.empty();
     }
 
     @Override
-    public OrdinaryUser updateUserProfile(Integer userId, OrdinaryUser updatedProfile) {
-        Optional<OrdinaryUser> existingUserOpt = ordinaryUserRepository.findById(userId);
+    public User updateUserProfile(Integer userId, User updatedProfile) {
+        Optional<User> existingUserOpt = userRepository.findById(userId);
 
         if (existingUserOpt.isEmpty()) {
             throw new IllegalArgumentException("用户不存在");
         }
 
-        OrdinaryUser existingUser = existingUserOpt.get();
+        User existingUser = existingUserOpt.get();
+
+        // 确保是普通用户
+        if (!existingUser.isOrdinaryUser()) {
+            throw new IllegalArgumentException("只有普通用户可以更新个人信息");
+        }
 
         // 验证并更新可修改的字段
         if (updatedProfile.getPhoneNumber() != null &&
@@ -108,7 +112,7 @@ public class UserProfileServiceImpl implements UserProfileService {
             existingUser.setSchoolWorkunit(updatedProfile.getSchoolWorkunit());
         }
 
-        return ordinaryUserRepository.save(existingUser);
+        return userRepository.save(existingUser);
     }
 
     @Override
@@ -122,8 +126,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         User user = userOpt.get();
 
         // 验证旧密码
-        String hashedOldPassword = hashPassword(oldPassword);
-        if (!hashedOldPassword.equals(user.getUserPassword())) {
+        if (!passwordEncoder.matches(oldPassword, user.getUserPassword())) {
             throw new IllegalArgumentException("原密码不正确");
         }
 
@@ -133,7 +136,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
 
         // 更新密码
-        String hashedNewPassword = hashPassword(newPassword);
+        String hashedNewPassword = passwordEncoder.encode(newPassword);
         user.setUserPassword(hashedNewPassword);
         userRepository.save(user);
 
@@ -150,14 +153,19 @@ public class UserProfileServiceImpl implements UserProfileService {
 
         User user = userOpt.get();
 
+        // 确保是普通用户
+        if (!user.isOrdinaryUser()) {
+            throw new IllegalArgumentException("只有普通用户可以注销账户");
+        }
+
         // 验证密码
-        String hashedPassword = hashPassword(password);
-        if (!hashedPassword.equals(user.getUserPassword())) {
+        if (!passwordEncoder.matches(password, user.getUserPassword())) {
             throw new IllegalArgumentException("密码不正确");
         }
 
-        // 删除用户（硬删除，生产环境建议软删除）
-        userRepository.delete(user);
+        // 软删除：将用户状态设置为禁用
+        user.setUserStatus(false);
+        userRepository.save(user);
 
         return true;
     }
@@ -165,7 +173,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Override
     public boolean sendPasswordResetCode(String identifier) {
         // 查找用户
-        Optional<User> userOpt = findUserByIdentifier(identifier);
+        Optional<User> userOpt = findOrdinaryUserByIdentifier(identifier);
 
         if (userOpt.isEmpty()) {
             // 出于安全考虑，不透露用户是否存在
@@ -213,14 +221,14 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
 
         // 查找用户
-        Optional<User> userOpt = findUserByIdentifier(identifier);
+        Optional<User> userOpt = findOrdinaryUserByIdentifier(identifier);
         if (userOpt.isEmpty()) {
             throw new IllegalArgumentException("用户不存在");
         }
 
         // 更新密码
         User user = userOpt.get();
-        String hashedPassword = hashPassword(newPassword);
+        String hashedPassword = passwordEncoder.encode(newPassword);
         user.setUserPassword(hashedPassword);
         userRepository.save(user);
 
@@ -238,53 +246,40 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     public boolean isEmailAvailable(String email) {
-        return !userRepository.existsByEmail(email);
+        return !userRepository.existsOrdinaryUserByEmail(UserType.ORDINARY, email);
     }
 
     @Override
     public boolean isPhoneAvailable(String phone) {
-        return !userRepository.existsByPhoneNumber(phone);
+        return !userRepository.existsOrdinaryUserByPhoneNumber(UserType.ORDINARY, phone);
     }
 
     /**
-     * 根据标识符查找用户（支持用户名、邮箱、手机号）
+     * 根据标识符查找普通用户（支持用户名、邮箱、手机号）
      */
-    private Optional<User> findUserByIdentifier(String identifier) {
-        // 尝试按用户名查找
-        Optional<User> user = userRepository.findByAccount(identifier);
+    private Optional<User> findOrdinaryUserByIdentifier(String identifier) {
+        // 1. 尝试按用户名查找
+        Optional<User> user = userRepository.findByUserName(identifier);
+        if (user.isPresent() && user.get().isOrdinaryUser()) {
+            return user;
+        }
+
+        // 2. 尝试按邮箱查找
+        user = userRepository.findOrdinaryUserByEmail(UserType.ORDINARY, identifier);
         if (user.isPresent()) {
             return user;
         }
 
-        // 尝试按邮箱查找
-        user = userRepository.findByEmail(identifier);
-        if (user.isPresent()) {
-            return user;
-        }
-
-        // 尝试按手机号查找
-        return userRepository.findByPhoneNumber(identifier);
+        // 3. 尝试按手机号查找
+        return userRepository.findOrdinaryUserByPhoneNumber(UserType.ORDINARY, identifier);
     }
 
     /**
      * 生成6位数字验证码
      */
     private String generateVerificationCode() {
-        Random random = new Random();
+        java.util.Random random = new java.util.Random();
         int code = 100000 + random.nextInt(900000);
         return String.valueOf(code);
-    }
-
-    /**
-     * 密码哈希函数
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("密码加密失败", e);
-        }
     }
 }

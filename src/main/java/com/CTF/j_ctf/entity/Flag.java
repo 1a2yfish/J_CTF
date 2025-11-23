@@ -89,6 +89,10 @@ public class Flag {
         this.status = 2;
     }
 
+    public void setFlagValue(String value) {
+        this.value = value;
+    }
+
     @Override
     public String toString() {
         return "Flag{" +

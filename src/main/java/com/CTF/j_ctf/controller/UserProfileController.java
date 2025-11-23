@@ -1,17 +1,18 @@
 package com.CTF.j_ctf.controller;
 
-import com.CTF.j_ctf.entity.OrdinaryUser;
+import com.CTF.j_ctf.entity.User;
 import com.CTF.j_ctf.service.UserProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/user/profile")
+@RequestMapping("/api/user-profile")
 public class UserProfileController {
     private final UserProfileService userProfileService;
 
@@ -20,17 +21,14 @@ public class UserProfileController {
     }
 
     /**
-     * 获取当前用户ID（从Session或JWT Token中获取）
-     * 这里需要根据您的认证系统实现
+     * 获取当前用户ID（从Session中获取）
      */
     private Integer getCurrentUserId(HttpServletRequest request) {
-        // 示例实现，实际应该从认证信息中获取
-        // 这里假设用户ID存储在请求属性中
-        Object userIdObj = request.getAttribute("userId");
-        if (userIdObj != null) {
-            return (Integer) userIdObj;
+        HttpSession session = request.getSession(false);
+        if (session == null || !"USER".equals(session.getAttribute("userRole"))) {
+            throw new SecurityException("用户未登录");
         }
-        throw new SecurityException("用户未登录");
+        return (Integer) session.getAttribute("userId");
     }
 
     /**
@@ -40,20 +38,20 @@ public class UserProfileController {
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
             Integer userId = getCurrentUserId(request);
-            Optional<OrdinaryUser> userProfile = userProfileService.getUserProfile(userId);
+            Optional<User> userProfile = userProfileService.getUserProfile(userId);
 
             if (userProfile.isPresent()) {
                 // 隐藏敏感信息
-                OrdinaryUser profile = userProfile.get();
-                profile.setUserPassword(null); // 不返回密码
-                return ResponseEntity.ok(profile);
+                User profile = userProfile.get();
+                profile.setUserPassword(null);
+                return ResponseEntity.ok(createSuccessResponse("获取个人信息成功", profile));
             } else {
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.badRequest().body(createErrorResponse("用户不存在或不是普通用户"));
             }
         } catch (SecurityException e) {
             return ResponseEntity.status(401).body(createErrorResponse("用户未登录"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(createErrorResponse("获取个人信息失败"));
         }
     }
 
@@ -61,19 +59,19 @@ public class UserProfileController {
      * 修改个人信息
      */
     @PutMapping
-    public ResponseEntity<?> updateProfile(@RequestBody OrdinaryUser updatedProfile,
+    public ResponseEntity<?> updateProfile(@RequestBody User updatedProfile,
                                            HttpServletRequest request) {
         try {
             Integer userId = getCurrentUserId(request);
-            OrdinaryUser result = userProfileService.updateUserProfile(userId, updatedProfile);
-            result.setUserPassword(null); // 不返回密码
-            return ResponseEntity.ok(result);
+            User result = userProfileService.updateUserProfile(userId, updatedProfile);
+            result.setUserPassword(null);
+            return ResponseEntity.ok(createSuccessResponse("更新个人信息成功", result));
         } catch (SecurityException e) {
             return ResponseEntity.status(401).body(createErrorResponse("用户未登录"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(createErrorResponse("更新失败"));
+            return ResponseEntity.internalServerError().body(createErrorResponse("更新个人信息失败"));
         }
     }
 
@@ -125,6 +123,11 @@ public class UserProfileController {
             boolean success = userProfileService.deactivateAccount(userId, password);
 
             if (success) {
+                // 注销成功后清除session
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    session.invalidate();
+                }
                 return ResponseEntity.ok(createSuccessResponse("账户注销成功"));
             } else {
                 return ResponseEntity.badRequest().body(createErrorResponse("账户注销失败"));
@@ -197,7 +200,7 @@ public class UserProfileController {
             Map<String, Object> response = new HashMap<>();
             response.put("available", available);
             response.put("username", username);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(createSuccessResponse("检查完成", response));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(createErrorResponse("检查失败"));
         }
@@ -213,7 +216,7 @@ public class UserProfileController {
             Map<String, Object> response = new HashMap<>();
             response.put("available", available);
             response.put("email", email);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(createSuccessResponse("检查完成", response));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(createErrorResponse("检查失败"));
         }
@@ -229,7 +232,7 @@ public class UserProfileController {
             Map<String, Object> response = new HashMap<>();
             response.put("available", available);
             response.put("phone", phone);
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(createSuccessResponse("检查完成", response));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(createErrorResponse("检查失败"));
         }
@@ -242,6 +245,19 @@ public class UserProfileController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", message);
+        response.put("timestamp", System.currentTimeMillis());
+        return response;
+    }
+
+    /**
+     * 创建成功响应（带数据）
+     */
+    private Map<String, Object> createSuccessResponse(String message, Object data) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", message);
+        response.put("data", data);
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 
@@ -252,6 +268,7 @@ public class UserProfileController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
         response.put("message", message);
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 }

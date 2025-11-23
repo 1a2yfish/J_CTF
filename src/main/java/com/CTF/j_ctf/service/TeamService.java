@@ -6,51 +6,63 @@ import com.CTF.j_ctf.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public interface TeamService {
 
-    // 战队管理
     Team createTeam(Team team, User captain);
     Team updateTeam(Team team);
-    boolean deleteTeam(Integer teamId);
-    Optional<Team> getTeamById(Integer teamId);
+    boolean disbandTeam(Integer teamId);
 
-    // 查询
+    boolean deleteTeam(Integer teamId);
+
+    Optional<Team> getTeamById(Integer teamId);
+    Optional<Team> getTeamByIdWithMembers(Integer teamId);
     Page<Team> getAllTeams(Pageable pageable);
     Page<Team> getTeamsByCompetition(Integer competitionId, Pageable pageable);
     Page<Team> getTeamsByAuditState(String auditState, Pageable pageable);
+
     Page<Team> getTeamsByCaptain(Integer captainId, Pageable pageable);
+
     Page<Team> getTeamsByMember(Integer memberId, Pageable pageable);
+
     Page<Team> searchTeams(String keyword, Pageable pageable);
     Page<Team> searchTeamsByCompetition(String keyword, Integer competitionId, Pageable pageable);
 
-    // 成员管理
-    boolean addMember(Integer teamId, Integer userId);
-    boolean removeMember(Integer teamId, Integer userId);
-    boolean transferCaptain(Integer teamId, Integer newCaptainId, Integer currentCaptainId);
-    boolean leaveTeam(Integer teamId, Integer userId);
+    // 新增方法
+    Optional<Team> getUserTeamInCompetition(Integer userId, Integer competitionId);
+    Optional<Team> getUserCurrentTeam(Integer userId);
+    boolean isUserCompetitionCreator(Integer competitionId, Integer userId);
+    String getJoinRestrictionReason(Integer teamId, Integer userId);
+    TeamApplication inviteUser(Integer teamId, Integer targetUserId, Integer inviterId);
+    Page<TeamApplication> getTeamApplicationsByStatus(Integer teamId, String status, Pageable pageable);
+    Optional<TeamApplication> getApplicationById(Integer applicationId);
+    boolean isTeamMember(Integer teamId, Integer userId);
+    Map<String, Object> getTeamStatistics(Integer teamId);
 
-    // 申请管理
+    // 已有方法保持不变
     TeamApplication applyToJoinTeam(Integer teamId, Integer applicantId, String remark);
     TeamApplication processApplication(Integer applicationId, boolean approved, String remark);
     Page<TeamApplication> getTeamApplications(Integer teamId, Pageable pageable);
     Page<TeamApplication> getUserApplications(Integer userId, Pageable pageable);
-    Page<TeamApplication> getPendingApplicationsByCaptain(Integer captainId, Pageable pageable);
+    boolean transferCaptain(Integer teamId, Integer newCaptainId, Integer currentCaptainId);
+    boolean leaveTeam(Integer teamId, Integer userId);
 
-    // 审核管理
-    Team auditTeam(Integer teamId, boolean approved, String auditRemark);
+    boolean addMember(Integer teamId, Integer userId);
 
-    // 验证
+    boolean removeMember(Integer teamId, Integer memberId);
+    Team auditTeam(Integer teamId, String auditState, String auditRemark);
     boolean canUserJoinTeam(Integer teamId, Integer userId);
-    boolean isTeamFull(Integer teamId);
-    boolean isUserInTeam(Integer teamId, Integer userId);
     boolean isTeamCaptain(Integer teamId, Integer userId);
 
-    // 统计
-    Map<String, Object> getTeamStatistics(Integer competitionId);
+    Page<TeamApplication> getPendingApplicationsByCaptain(Integer captainId, Pageable pageable);
+
+    boolean isTeamFull(Integer teamId);
+
+    boolean isUserInTeam(Integer teamId, Integer userId);
+
     Long getTeamCountByCompetition(Integer competitionId);
+
     Long getPendingApplicationCount(Integer teamId);
 }

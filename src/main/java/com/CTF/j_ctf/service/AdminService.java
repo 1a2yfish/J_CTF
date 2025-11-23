@@ -1,25 +1,25 @@
 package com.CTF.j_ctf.service;
 
-import com.CTF.j_ctf.entity.*;
+import com.CTF.j_ctf.entity.Competition;
+import com.CTF.j_ctf.entity.Team;
+import com.CTF.j_ctf.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public interface AdminService {
 
-    // 用户管理
-    Page<OrdinaryUser> getAllUsers(Pageable pageable);
-    Page<OrdinaryUser> searchUsers(String keyword, Pageable pageable);
-    OrdinaryUser getUserDetails(Integer userId);
-    OrdinaryUser updateUser(OrdinaryUser user);
+    // === 用户管理方法 ===
+    Page<User> getAllUsers(Pageable pageable);
+    Page<User> searchUsers(String keyword, Pageable pageable);
+    User getUserDetails(Integer userId);
+    User updateUser(User user);
     boolean disableUser(Integer userId);
     boolean enableUser(Integer userId);
     boolean deleteUser(Integer userId);
 
-    // 战队管理
+    // === 战队管理方法 ===
     Page<Team> getAllTeams(Pageable pageable);
     Page<Team> getTeamsByCompetition(Integer competitionId, Pageable pageable);
     Page<Team> getTeamsByAuditState(String auditState, Pageable pageable);
@@ -28,7 +28,7 @@ public interface AdminService {
     boolean deleteTeam(Integer teamId);
     Map<String, Object> getTeamStatistics(Integer competitionId);
 
-    // 竞赛管理
+    // === 竞赛管理方法 ===
     Page<Competition> getAllCompetitions(Pageable pageable);
     Page<Competition> getCompetitionsByStatus(String status, Pageable pageable);
     Competition getCompetitionDetails(Integer competitionId);
@@ -38,6 +38,6 @@ public interface AdminService {
     boolean deleteCompetition(Integer competitionId);
     Map<String, Object> getCompetitionStatistics(Integer competitionId);
 
-    // 系统统计
+    // === 系统统计方法 ===
     Map<String, Object> getSystemStatistics();
 }
