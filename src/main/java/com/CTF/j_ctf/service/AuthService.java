@@ -1,6 +1,5 @@
 package com.CTF.j_ctf.service;
 
-import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.User;
 
 import java.util.Optional;
@@ -17,6 +16,8 @@ public interface UserService {
 
     // 登录方法
     Optional<User> login(String account, String password);
+    // 管理员登录方法
+    Optional<Administrator> adminLogin(String account, String password);
 
     // 查找方法
     Optional<User> findById(Integer id);

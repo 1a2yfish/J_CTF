@@ -1,6 +1,5 @@
 package com.CTF.j_ctf.service.impl;
 
-import com.CTF.j_ctf.entity.OrdinaryUser;
 import com.CTF.j_ctf.entity.User;
 import com.CTF.j_ctf.repository.UserRepository;
 import com.CTF.j_ctf.service.UserService;
@@ -13,17 +12,57 @@ import java.util.regex.Pattern;
 
 @Service
 public class UserServiceImpl implements UserService {
-    private final UserRepository repo;
+    //private final UserRepository repo;
+    private final UserRepository userRepo;
+    private final AdministratorRepository adminRepo;
     private final BCryptPasswordEncoder passwordEncoder;
 
     // 正则表达式用于验证
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
 
-    public UserServiceImpl(UserRepository repo) {
-        this.repo = repo;
+
+//    public UserServiceImpl(UserRepository repo) {
+//        this.repo = repo;
+//        this.passwordEncoder = new BCryptPasswordEncoder();
+//    }
+
+    public UserServiceImpl(UserRepository userRepo, AdministratorRepository adminRepo) {
+        this.userRepo = userRepo;
+        this.adminRepo = adminRepo;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
+
+    @Override
+    public Optional<Administrator> adminLogin(String account, String password) {
+        // 查找管理员账户
+        Optional<Administrator> admin = findAdminByIdentifier(account);
+
+        if (admin.isPresent()) {
+            Administrator foundAdmin = admin.get();
+            // 验证密码
+            if (passwordEncoder.matches(password, foundAdmin.getUserPassword())) {
+                return admin;
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * 根据标识符查找管理员（支持管理员ID）
+     */
+    private Optional<Administrator> findAdminByIdentifier(String identifier) {
+        // 尝试按ID查找
+        try {
+            Integer adminId = Integer.parseInt(identifier);
+            return adminRepo.findById(adminId);
+        } catch (NumberFormatException e) {
+            // 如果不是数字，返回空
+            return Optional.empty();
+        }
+    }
+
 
     @Override
     public User register(User user) {
@@ -34,7 +73,7 @@ public class UserServiceImpl implements UserService {
         String encodedPassword = passwordEncoder.encode(user.getUserPassword());
         user.setUserPassword(encodedPassword);
 
-        return repo.save(user);
+        return userRepo.save(user);
     }
 
     @Override
@@ -42,13 +81,13 @@ public class UserServiceImpl implements UserService {
                                              String userEmail, String userName,
                                              String gender, String schoolWorkunit) {
         // 检查唯一性约束
-        if (repo.existsByUserName(userName)) {
+        if (userRepo.existsByUserName(userName)) {
             throw new IllegalArgumentException("用户名已存在");
         }
-        if (repo.existsByEmail(userEmail)) {
+        if (userRepo.existsByEmail(userEmail)) {
             throw new IllegalArgumentException("邮箱已被注册");
         }
-        if (repo.existsByPhoneNumber(phoneNumber)) {
+        if (userRepo.existsByPhoneNumber(phoneNumber)) {
             throw new IllegalArgumentException("手机号已被注册");
         }
 
@@ -61,7 +100,7 @@ public class UserServiceImpl implements UserService {
         String encodedPassword = passwordEncoder.encode(user.getUserPassword());
         user.setUserPassword(encodedPassword);
 
-        return repo.save(user);
+        return userRepo.save(user);
     }
 
     @Override
@@ -82,7 +121,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Optional<User> findById(Integer id) {
-        return repo.findById(id);
+        return userRepo.findById(id);
     }
 
     @Override
@@ -95,19 +134,19 @@ public class UserServiceImpl implements UserService {
      */
     private Optional<User> findUserByIdentifier(String identifier) {
         // 尝试按用户名查找
-        Optional<User> user = repo.findByAccount(identifier);
+        Optional<User> user = userRepo.findByAccount(identifier);
         if (user.isPresent()) {
             return user;
         }
 
         // 尝试按邮箱查找
-        user = repo.findByEmail(identifier);
+        user = userRepo.findByEmail(identifier);
         if (user.isPresent()) {
             return user;
         }
 
         // 尝试按手机号查找
-        return repo.findByPhoneNumber(identifier);
+        return userRepo.findByPhoneNumber(identifier);
     }
 
     /**
